@@ -14,6 +14,7 @@ resource "aws_lambda_function" "this" {
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   timeout          = var.timeout
 
+
   environment {
     variables = {
       INPUT_BUCKET       = var.input_bucket_name

@@ -10,9 +10,11 @@ dependency "input_bucket" {
   config_path = "../s3_input"
 }
 
+
 dependency "output_bucket" {
   config_path = "../s3_output"
 }
+
 
 dependency "cloudfront" {
   config_path = "../cloudfront"
@@ -26,6 +28,7 @@ inputs = {
   function_name   = "laas-dev-handler"
   lambda_role_arn = dependency.iam.outputs.lambda_role_arn
   timeout         = 60
+
   input_bucket_name  = dependency.input_bucket.outputs.bucket_name
   input_key          = "index.html"
   output_bucket_name = dependency.output_bucket.outputs.bucket_name

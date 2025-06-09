@@ -28,6 +28,5 @@ variable "bedrock_model_id" {
 }
 
 variable "cloudfront_domain" {
-  type    = string
-  default = ""
-}
+=======
+variable "output_bucket_name" {

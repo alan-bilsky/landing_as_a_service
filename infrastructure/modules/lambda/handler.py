@@ -11,6 +11,7 @@ s3_client = boto3.client("s3")
 bedrock_runtime = boto3.client("bedrock-runtime")
 
 
+
 def handler(event, context):
     """Generate a landing page from a template stored in S3."""
     print("Event received:", event)
