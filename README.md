@@ -20,6 +20,14 @@ Each environment deploys:
 - Cognito user pool for authentication
 - CloudFront distribution to serve generated pages
 
+Before running Terragrunt you must set the bucket and region for storing
+Terraform state. For example:
+
+```bash
+export TG_STATE_BUCKET=laas-dev-tfstate
+export TG_REGION=us-west-2
+```
+
 Run `terragrunt run-all apply` from the desired environment directory to deploy.
 
 ## Prerequisites
@@ -54,3 +62,4 @@ terragrunt output -raw distribution_domain_name
 ```
 
 Navigate to that domain or open the object from the output S3 bucket to view the resulting landing page.
+

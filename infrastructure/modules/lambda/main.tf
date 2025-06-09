@@ -13,4 +13,15 @@ resource "aws_lambda_function" "this" {
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   timeout          = var.timeout
+
+
+  environment {
+    variables = {
+      INPUT_BUCKET       = var.input_bucket_name
+      INPUT_KEY          = var.input_key
+      OUTPUT_BUCKET      = var.output_bucket_name
+      BEDROCK_MODEL_ID   = var.bedrock_model_id
+      CLOUDFRONT_DOMAIN  = var.cloudfront_domain
+    }
+  }
 }
