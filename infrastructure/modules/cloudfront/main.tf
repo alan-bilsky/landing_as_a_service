@@ -32,3 +32,31 @@ resource "aws_cloudfront_distribution" "this" {
 
   viewer_certificate { cloudfront_default_certificate = true }
 }
+
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "oac_read" {
+  statement {
+    actions = ["s3:GetObject"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    resources = ["arn:aws:s3:::${var.origin_bucket_domain_name}/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [
+        "arn:aws:cloudfront::${data.aws_caller_identity.current.account_id}:distribution/${aws_cloudfront_origin_access_control.oac.id}"
+      ]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "allow_oac" {
+  bucket = var.origin_bucket_domain_name
+  policy = data.aws_iam_policy_document.oac_read.json
+}
