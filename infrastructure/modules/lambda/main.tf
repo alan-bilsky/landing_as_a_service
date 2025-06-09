@@ -13,4 +13,13 @@ resource "aws_lambda_function" "this" {
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   timeout          = var.timeout
+
+  dynamic "environment" {
+    for_each = var.output_bucket_name != "" ? [1] : []
+    content {
+      variables = {
+        OUTPUT_BUCKET = var.output_bucket_name
+      }
+    }
+  }
 }

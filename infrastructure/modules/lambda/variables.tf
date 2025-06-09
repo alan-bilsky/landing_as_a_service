@@ -10,3 +10,8 @@ variable "timeout" {
   type    = number
   default = 60
 }
+
+variable "output_bucket_name" {
+  type    = string
+  default = ""
+}
