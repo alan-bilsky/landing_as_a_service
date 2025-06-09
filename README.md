@@ -30,29 +30,36 @@ export TG_REGION=us-west-2
 
 Run `terragrunt run-all apply` from the desired environment directory to deploy.
 
-## Web Frontend
+## Prerequisites
 
-A simple static web page for interacting with the service lives in `web/`.
-It handles Cognito authentication, collects the desired modifications and
-calls the API Gateway endpoint. The response should contain the path or URL
-of the generated landing page, which is then opened in the browser.
+- AWS credentials configured (via the AWS CLI or environment variables).
+- Terraform **1.3+** and Terragrunt **0.47+** installed.
+- Access to the Amazon Bedrock service in your AWS account.
 
-### Setup
-1. Deploy the infrastructure (`terragrunt run-all apply`) in the desired environment.
-2. Retrieve the required values using `terragrunt output`:
-   - `api_endpoint`
-   - `user_pool_id`
-   - `user_pool_client_id`
-   - `distribution_domain_name`
-3. Copy `web/config.example.js` to `web/config.js` and fill in the above values.
+## Deploying environments
 
-The web folder is static, so no build step is required. To make it
-accessible you can upload it to the input S3 bucket created by the
-infrastructure:
+1. Change into the environment directory (`infrastructure/live/dev` or `infrastructure/live/prod`).
+2. Run `terragrunt run-all init` followed by `terragrunt run-all apply`.
+
+Terragrunt will provision all buckets, roles, the Lambda function, API Gateway, Cognito user pool and CloudFront distribution for that environment.
+
+## Running the front-end and triggering the Lambda
+
+Upload an HTML file to the `s3_input` bucket created during deployment. Then invoke the API Gateway endpoint to start the generation process. You can trigger the Lambda manually with `curl`:
 
 ```bash
-aws s3 sync web/ s3://<input-bucket-name>
+curl -X POST -d @example.html $(terragrunt output -raw api_endpoint)
 ```
 
-Once uploaded, open `index.html` in a browser and sign in with your Cognito
-credentials to generate a page.
+A minimal front-end could simply POST the HTML content to this API URL.
+
+## Where to find the generated output
+
+The Lambda writes the generated page to the `s3_output` bucket. It is also served via the CloudFront distribution. Obtain the distribution domain name with:
+
+```bash
+terragrunt output -raw distribution_domain_name
+```
+
+Navigate to that domain or open the object from the output S3 bucket to view the resulting landing page.
+
