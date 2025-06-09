@@ -11,7 +11,22 @@ variable "timeout" {
   default = 60
 }
 
-variable "output_bucket_name" {
-  type    = string
-  default = ""
+variable "input_bucket_name" {
+  type = string
 }
+
+variable "input_key" {
+  type = string
+}
+
+variable "output_bucket_name" {
+  type = string
+}
+
+variable "bedrock_model_id" {
+  type = string
+}
+
+variable "cloudfront_domain" {
+=======
+variable "output_bucket_name" {
