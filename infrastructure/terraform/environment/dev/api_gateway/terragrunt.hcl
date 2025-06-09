@@ -11,10 +11,12 @@ dependency "lambda" {
 }
 
 terraform {
-  source = "../../../modules/api_gateway"
+  source = "../../../../terraform_modules/api_gateway"
 }
 
-inputs = {
+inputs = merge(local.environment_vars,
+  {
   api_name            = "laas-dev-api"
   lambda_function_arn = dependency.lambda.outputs.lambda_function_arn
 }
+)

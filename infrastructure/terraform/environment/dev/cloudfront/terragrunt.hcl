@@ -11,10 +11,12 @@ dependency "output_bucket" {
 }
 
 terraform {
-  source = "../../../modules/cloudfront"
+  source = "../../../../terraform_modules/cloudfront"
 }
 
-inputs = {
+inputs = merge(local.environment_vars,
+  {
   distribution_name         = "laas-dev-cf"
   origin_bucket_domain_name = dependency.output_bucket.outputs.bucket_name
 }
+)

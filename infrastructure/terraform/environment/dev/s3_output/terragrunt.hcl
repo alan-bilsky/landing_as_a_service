@@ -6,10 +6,12 @@ include {
 }
 
 terraform {
-  source = "../../../modules/s3_bucket"
+  source = "../../../../terraform_modules/s3_bucket"
 }
 
-inputs = {
+inputs = merge(local.environment_vars,
+  {
   bucket_name   = "laas-dev-output"
   force_destroy = true
 }
+)

@@ -25,10 +25,11 @@ dependency "cloudfront" {
 }
 
 terraform {
-  source = "../../../modules/lambda"
+  source = "../../../../terraform_modules/lambda"
 }
 
-inputs = {
+inputs = merge(local.environment_vars,
+  {
   function_name   = "laas-dev-handler"
   lambda_role_arn = dependency.iam.outputs.lambda_role_arn
   timeout         = 60
@@ -39,3 +40,4 @@ inputs = {
   bedrock_model_id   = "anthropic.claude-v2"
   cloudfront_domain  = dependency.cloudfront.outputs.distribution_domain_name
 }
+)

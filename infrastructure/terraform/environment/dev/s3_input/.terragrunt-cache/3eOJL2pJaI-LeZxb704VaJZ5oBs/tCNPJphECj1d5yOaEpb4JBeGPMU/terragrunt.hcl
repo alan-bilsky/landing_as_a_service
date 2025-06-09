@@ -9,7 +9,10 @@ terraform {
   source = "../../../../terraform_modules/s3_bucket"
 }
 
-inputs = {
-  bucket_name   = "laas-dev-input"
-  force_destroy = true
-}
+inputs = merge(local.environment_vars,
+  {
+    bucket_name   = "laas-dev-input"
+    force_destroy = true
+  }
+)
+
