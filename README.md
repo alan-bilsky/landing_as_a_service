@@ -62,17 +62,19 @@ endpoint:
   "imagen": "URL de la imagen",
   "titulo": "Título principal",
   "subtitulo": "Subtítulo",
-  "beneficios": "Lista o descripción de beneficios",
+  "beneficios": ["Beneficio 1", "Beneficio 2", "Beneficio 3"],
   "cta": "Texto del botón CTA"
 }
 ```
+
+The `beneficios` field must be an array of strings. When using the sample front‑end, enter one benefit per line in the textarea and the script will split them into the required array format.
 
 An invocation using `curl` might look like:
 
 ```bash
 curl -X POST \
   -H "Content-Type: application/json" \
-  -d '{"imagen":"https://example.com/hero.jpg","titulo":"Mi producto","subtitulo":"Subtítulo","beneficios":"Beneficio 1\nBeneficio 2","cta":"Comprar"}' \
+  -d '{"imagen":"https://example.com/hero.jpg","titulo":"Mi producto","subtitulo":"Subtítulo","beneficios":["Beneficio 1","Beneficio 2"],"cta":"Comprar"}' \
   $(terragrunt output -raw api_endpoint)
 ```
 
