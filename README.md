@@ -68,3 +68,33 @@ terragrunt output -raw distribution_domain_name
 
 Navigate to that domain or open the object from the output S3 bucket to view the resulting landing page.
 
+## Serving the sample web page
+
+Follow these steps to try the simple front‑end included under `web/`:
+
+1. Copy the example configuration and fill in the required values:
+
+   ```bash
+   cp web/config.example.js web/config.js
+   ```
+
+   Edit `web/config.js` and provide your `apiEndpoint`, `cloudfrontUrl`,
+   `userPoolId` and `userPoolClientId` (these can be obtained with
+   `terragrunt output`).
+
+2. Serve `web/index.html` locally or upload the files to an S3 bucket
+   and front it with CloudFront. For quick local testing you can run:
+
+   ```bash
+   npx http-server web
+   # or
+   python3 -m http.server --directory web 8080
+   ```
+
+   Then open the printed URL in your browser.
+
+Submitting the form sends a JSON body containing your modifications to the
+configured API Gateway endpoint. API Gateway invokes the Lambda function, which
+returns the location of the generated page. The script in `main.js` redirects
+the browser to that URL (using `cloudfrontUrl` if only a path is returned).
+
