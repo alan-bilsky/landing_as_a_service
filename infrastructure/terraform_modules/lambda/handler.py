@@ -3,6 +3,7 @@
 import json
 import os
 import uuid
+import base64
 
 import boto3
 
@@ -25,7 +26,16 @@ def handler(event, context):
     template_obj = s3_client.get_object(Bucket=input_bucket, Key=input_key)
     template_html = template_obj["Body"].read().decode("utf-8")
 
-    prompt = f"Modify the following HTML to create a landing page:\n{template_html}"
+    body_content = event.get("body", "")
+    if event.get("isBase64Encoded"):
+        body_content = base64.b64decode(body_content).decode("utf-8")
+
+    payload = json.loads(body_content) if body_content else {}
+    mods = payload.get("modifications", "")
+
+    prompt = (
+        f"Modify the following HTML using these instructions: {mods}\n{template_html}"
+    )
 
     response = bedrock_runtime.invoke_model(
         modelId=bedrock_model,
