@@ -68,3 +68,7 @@ terragrunt output -raw distribution_domain_name
 
 Navigate to that domain or open the object from the output S3 bucket to view the resulting landing page.
 
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
