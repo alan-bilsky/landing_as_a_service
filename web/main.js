@@ -37,7 +37,7 @@
             imagen: document.getElementById('imagen').value,
             titulo: document.getElementById('titulo').value,
             subtitulo: document.getElementById('subtitulo').value,
-            beneficios: document.getElementById('beneficios').value,
+            beneficios: document.getElementById('beneficios').value.split('\n'),
             cta: document.getElementById('cta').value
         };
         fetch(config.apiEndpoint, {
