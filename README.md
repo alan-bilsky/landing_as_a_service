@@ -6,8 +6,8 @@ This repository contains a Terragrunt-based infrastructure setup for a serverles
 
 ```
 infrastructure/
-  modules/        # Reusable Terraform modules
-  live/
+  terraform_modules/        # Reusable Terraform modules
+  terraform/environment/
     dev/          # Development environment
     prod/         # Production environment
 ```
@@ -38,7 +38,7 @@ Run `terragrunt run-all apply` from the desired environment directory to deploy.
 
 ## Deploying environments
 
-1. Change into the environment directory (`infrastructure/live/dev` or `infrastructure/live/prod`).
+1. Change into the environment directory (`infrastructure/terraform/environment/dev` or `infrastructure/terraform/environment/prod`).
 2. Run `terragrunt run-all init` followed by `terragrunt run-all apply`.
 
 Terragrunt will provision all buckets, roles, the Lambda function, API Gateway, Cognito user pool and CloudFront distribution for that environment.
@@ -52,6 +52,11 @@ curl -X POST -d @example.html $(terragrunt output -raw api_endpoint)
 ```
 
 A minimal front-end could simply POST the HTML content to this API URL.
+
+Create a `web/config.js` file by copying `web/config.example.js` and fill in
+your values. The file should export a global `config` object with the following
+fields:
+`apiEndpoint`, `cloudfrontUrl`, `userPoolId` and `userPoolClientId`.
 
 ## Where to find the generated output
 
