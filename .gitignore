@@ -1,2 +1,6 @@
 web/config.js
 .terra*
+.DS_Store
+.terragrunt-cache/
+.terraform/
+.vscode/
