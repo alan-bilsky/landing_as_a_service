@@ -1,3 +1,7 @@
+locals {
+  environment_vars = read_terragrunt_config(find_in_parent_folders("environment.hcl")).inputs
+}
+
 include {
   path = find_in_parent_folders()
 }
@@ -7,10 +11,12 @@ dependency "lambda" {
 }
 
 terraform {
-  source = "../../../modules/api_gateway"
+  source = "../../../../terraform_modules/api_gateway"
 }
 
-inputs = {
-  api_name            = "laas-prod-api"
+inputs = merge(local.environment_vars,
+  {
+  api_name            = "laas-${local.environment_vars.environment}-api"
   lambda_function_arn = dependency.lambda.outputs.lambda_function_arn
 }
+)

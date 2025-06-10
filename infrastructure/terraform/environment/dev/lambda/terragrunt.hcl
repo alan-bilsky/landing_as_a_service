@@ -30,7 +30,7 @@ terraform {
 
 inputs = merge(local.environment_vars,
   {
-  function_name   = "laas-dev-handler"
+  function_name   = "laas-${local.environment}-handler"
   lambda_role_arn = dependency.iam.outputs.lambda_role_arn
   timeout         = 60
 

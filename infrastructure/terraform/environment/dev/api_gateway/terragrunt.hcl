@@ -16,7 +16,7 @@ terraform {
 
 inputs = merge(local.environment_vars,
   {
-  api_name            = "laas-dev-api"
+  api_name            = "laas-${local.environment}-api"
   lambda_function_arn = dependency.lambda.outputs.lambda_function_arn
 }
 )

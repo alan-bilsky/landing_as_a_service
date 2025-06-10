@@ -14,9 +14,8 @@ terraform {
   source = "../../../../terraform_modules/cloudfront"
 }
 
-inputs = merge(local.environment_vars,
-  {
-  distribution_name         = "laas-dev-cf"
-  origin_bucket_domain_name = dependency.output_bucket.outputs.bucket_name
-}
-)
+inputs = merge(local.environment_vars, {
+  distribution_name           = "laas-${local.environment}-cf"
+  origin_bucket_name          = dependency.output_bucket.outputs.bucket_name
+  origin_bucket_domain_name   = "${dependency.output_bucket.outputs.bucket_name}.s3.amazonaws.com"
+})

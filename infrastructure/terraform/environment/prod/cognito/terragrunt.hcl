@@ -1,11 +1,17 @@
+locals {
+  environment_vars = read_terragrunt_config(find_in_parent_folders("environment.hcl")).inputs
+}
+
 include {
   path = find_in_parent_folders()
 }
 
 terraform {
-  source = "../../../modules/cognito"
+  source = "../../../../terraform_modules/cognito"
 }
 
-inputs = {
-  user_pool_name = "laas-prod-users"
+inputs = merge(local.environment_vars,
+{
+  user_pool_name = "laas-${local.environment_vars.environment}-users"
 }
+)

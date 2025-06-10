@@ -20,7 +20,7 @@ terraform {
 
 inputs = merge(local.environment_vars,
   {
-  lambda_role_name  = "laas-dev-lambda"
+  lambda_role_name  = "laas-${local.environment}-lambda"
   input_bucket_arn  = dependency.input_bucket.outputs.bucket_arn
   output_bucket_arn = dependency.output_bucket.outputs.bucket_arn
 }

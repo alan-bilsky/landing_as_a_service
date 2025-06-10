@@ -11,7 +11,7 @@ terraform {
 
 inputs = merge(local.environment_vars,
   {
-    bucket_name   = "laas-dev-input"
+    bucket_name   = "laas-${local.environment}-input"
     force_destroy = true
   }
 )

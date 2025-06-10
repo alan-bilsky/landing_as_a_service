@@ -1,3 +1,7 @@
+locals {
+  environment_vars = read_terragrunt_config(find_in_parent_folders("environment.hcl")).inputs
+}
+
 include {
   path = find_in_parent_folders()
 }
@@ -11,11 +15,13 @@ dependency "output_bucket" {
 }
 
 terraform {
-  source = "../../../modules/iam_roles"
+  source = "../../../../terraform_modules/iam_roles"
 }
 
-inputs = {
-  lambda_role_name  = "laas-prod-lambda"
+inputs = merge(local.environment_vars,
+  {
+  lambda_role_name  = "laas-${local.environment_vars.environment}-lambda"
   input_bucket_arn  = dependency.input_bucket.outputs.bucket_arn
   output_bucket_arn = dependency.output_bucket.outputs.bucket_arn
 }
+)

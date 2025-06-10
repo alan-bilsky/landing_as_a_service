@@ -7,11 +7,9 @@ include {
 }
 
 terraform {
-  source = "../../../../terraform_modules/cognito"
+  source = "../../../modules/cognito"
 }
 
-inputs = merge(local.environment_vars,
-  {
-  user_pool_name = "laas-dev-users"
+inputs = {
+  user_pool_name = "laas-${local.environment}-users"
 }
-)
