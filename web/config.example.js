@@ -1,6 +1,6 @@
 const config = {
-  apiEndpoint: 'https://api.example.com/prod/generate',
-  cloudfrontUrl: 'https://d123.cloudfront.net',
-  userPoolId: 'us-west-2_XXXX',
-  userPoolClientId: 'YOUR_CLIENT_ID'
+  apiEndpoint: 'https://sfwwrb68gf.execute-api.us-west-2.amazonaws.com',
+  cloudfrontUrl: 'd369rgib0fw3ko.cloudfront.net',
+  userPoolId: 'us-west-2_fppfOPjlg',
+  userPoolClientId: '58q1dlgb5vbacdjro446ulgd6g'
 };
