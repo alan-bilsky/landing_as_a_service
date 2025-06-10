@@ -33,14 +33,20 @@
     });
 
     document.getElementById('submit').addEventListener('click', function() {
-        const mods = document.getElementById('modifications').value;
+        const payload = {
+            imagen: document.getElementById('imagen').value,
+            titulo: document.getElementById('titulo').value,
+            subtitulo: document.getElementById('subtitulo').value,
+            beneficios: document.getElementById('beneficios').value,
+            cta: document.getElementById('cta').value
+        };
         fetch(config.apiEndpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': idToken
             },
-            body: JSON.stringify({ modifications: mods })
+            body: JSON.stringify(payload)
         })
         .then(r => r.json())
         .then(data => {

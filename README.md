@@ -54,13 +54,25 @@ Terragrunt will provision all buckets, roles, the Lambda function, API Gateway, 
 
 Upload an HTML file (for example `index.html`) to the `s3_input` bucket created
 during deployment. The Lambda reads this template from S3. To trigger the page
-generation you POST a JSON payload describing your modifications to the API
-Gateway endpoint. An invocation using `curl` might look like:
+generation you POST a JSON payload with the following fields to the API Gateway
+endpoint:
+
+```
+{
+  "imagen": "URL de la imagen",
+  "titulo": "Título principal",
+  "subtitulo": "Subtítulo",
+  "beneficios": "Lista o descripción de beneficios",
+  "cta": "Texto del botón CTA"
+}
+```
+
+An invocation using `curl` might look like:
 
 ```bash
 curl -X POST \
   -H "Content-Type: application/json" \
-  -d '{"modifications": "Make all headings blue"}' \
+  -d '{"imagen":"https://example.com/hero.jpg","titulo":"Mi producto","subtitulo":"Subtítulo","beneficios":"Beneficio 1\nBeneficio 2","cta":"Comprar"}' \
   $(terragrunt output -raw api_endpoint)
 ```
 
@@ -107,8 +119,9 @@ Follow these steps to try the simple front‑end included under `web/`:
 
    Then open the printed URL in your browser.
 
-Submitting the form sends a JSON body containing your modifications to the
-configured API Gateway endpoint. API Gateway invokes the Lambda function, which
+Submitting the form sends a JSON body containing `imagen`, `titulo`, `subtitulo`,
+`beneficios` and `cta` to the configured API Gateway endpoint. API Gateway invokes
+the Lambda function, which
 returns the location of the generated page. The script in `main.js` redirects
 the browser to that URL (using `cloudfrontUrl` if only a path is returned).
 
