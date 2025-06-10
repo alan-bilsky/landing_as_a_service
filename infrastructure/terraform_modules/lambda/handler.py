@@ -41,11 +41,16 @@ def handler(event, context):
         modelId=bedrock_model,
         contentType="application/json",
         accept="application/json",
-        body=json.dumps({"inputText": prompt}).encode("utf-8"),
+        body=json.dumps(
+            {
+                "prompt": prompt,
+                "max_tokens_to_sample": 300,
+                "anthropic_version": "bedrock-2023-05-31",
+            }
+        ).encode("utf-8"),
     )
 
-    result = json.loads(response["body"].read())
-    generated_html = result.get("results", [{}])[0].get("outputText", "")
+    generated_html = json.loads(response["body"].read())["completion"]
 
     output_key = f"{uuid.uuid4()}.html"
     s3_client.put_object(
