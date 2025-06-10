@@ -7,7 +7,7 @@ include {
 }
 
 terraform {
-  source = "../../../modules/cognito"
+  source = "../../../../terraform_modules/cognito"
 }
 
 inputs = {
