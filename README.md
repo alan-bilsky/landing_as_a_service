@@ -28,6 +28,13 @@ export TG_STATE_BUCKET=laas-dev-tfstate
 export TG_REGION=us-west-2
 ```
 
+Before applying Terragrunt, build the Lambda deployment package:
+
+```bash
+cd infrastructure/terraform_modules/lambda
+./build.sh
+```
+
 Run `terragrunt run-all apply` from the desired environment directory to deploy.
 
 ## Prerequisites
