@@ -15,3 +15,4 @@ inputs = merge(local.environment_vars,
   user_pool_name = "laas-${local.environment_vars.environment}-users"
 }
 )
+asd
