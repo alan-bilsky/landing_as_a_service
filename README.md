@@ -68,6 +68,7 @@ terragrunt output -raw distribution_domain_name
 
 Navigate to that domain or open the object from the output S3 bucket to view the resulting landing page.
 
+
 ## Serving the sample web page
 
 Follow these steps to try the simple front‑end included under `web/`:
@@ -97,4 +98,10 @@ Submitting the form sends a JSON body containing your modifications to the
 configured API Gateway endpoint. API Gateway invokes the Lambda function, which
 returns the location of the generated page. The script in `main.js` redirects
 the browser to that URL (using `cloudfrontUrl` if only a path is returned).
+
+
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
 
