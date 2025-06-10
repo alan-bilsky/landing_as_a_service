@@ -52,10 +52,16 @@ Terragrunt will provision all buckets, roles, the Lambda function, API Gateway, 
 
 ## Running the front-end and triggering the Lambda
 
-Upload an HTML file to the `s3_input` bucket created during deployment. Then invoke the API Gateway endpoint to start the generation process. You can trigger the Lambda manually with `curl`:
+Upload an HTML file (for example `index.html`) to the `s3_input` bucket created
+during deployment. The Lambda reads this template from S3. To trigger the page
+generation you POST a JSON payload describing your modifications to the API
+Gateway endpoint. An invocation using `curl` might look like:
 
 ```bash
-curl -X POST -d @example.html $(terragrunt output -raw api_endpoint)
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"modifications": "Make all headings blue"}' \
+  $(terragrunt output -raw api_endpoint)
 ```
 
 A minimal front-end could simply POST the HTML content to this API URL.
