@@ -78,7 +78,17 @@ An invocation using `curl` might look like:
 curl -X POST \
   -H "Content-Type: application/json" \
   -d '{"imagen":"https://example.com/hero.jpg","titulo":"Mi producto","subtitulo":"Subtítulo","beneficios":["Beneficio 1","Beneficio 2"],"cta":"Comprar"}' \
-  $(terragrunt output -raw api_endpoint)
+$(terragrunt output -raw api_endpoint)
+```
+
+You can also test the function directly from the AWS Lambda console. Create a
+new test event using the following JSON payload:
+
+```json
+{
+  "body": "{\"imagen\":\"https://example.com/hero.jpg\",\"titulo\":\"Mi producto\",\"subtitulo\":\"Subtítulo\",\"beneficios\":[\"Beneficio 1\",\"Beneficio 2\"],\"cta\":\"Comprar\"}",
+  "isBase64Encoded": false
+}
 ```
 
 A minimal front-end could simply POST the HTML content to this API URL.
