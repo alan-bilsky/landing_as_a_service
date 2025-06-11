@@ -50,7 +50,7 @@
         })
         .then(r => r.json())
         .then(data => {
-            const url = data.url ? data.url : config.cloudfrontUrl + '/' + data.path;
+            const url = data.htmlUrl || (data.url ? data.url : config.cloudfrontUrl + '/' + data.path);
             window.location.href = url;
         })
         .catch(err => alert('Error: ' + err));
