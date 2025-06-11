@@ -14,7 +14,7 @@ BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-east-1")
 s3_client = boto3.client("s3")
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
 
-ESTILO_TREINTA = (
+ESTILO_LAAS = (
     "obligatory: both hands holding device naturally, five fingers each hand, realistic grip. no distortion. PROPORTIONAL. centered symmetrical face, natural proportions, professional headshot quality. "
     "Ultra realistic professional photograph, DSLR quality. "
     "Person from America with Yellow clothing element (#FFE600) or detail. "
@@ -57,7 +57,7 @@ def handler(event, context):
             "body": json.dumps({"error": "El campo 'imagen' est\u00e1 vac\u00edo o no existe."}),
         }
 
-    prompt_completo = f"{prompt_base}. {ESTILO_TREINTA}"
+    prompt_completo = f"{prompt_base}. {ESTILO_LAAS}"
 
     payload = {
         "taskType": "TEXT_IMAGE",

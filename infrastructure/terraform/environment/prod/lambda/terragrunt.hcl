@@ -25,6 +25,10 @@ dependency "cloudfront" {
 }
 
 terraform {
+  before_hook "build_lambda" {
+    commands = ["init", "plan", "apply"]
+    execute  = ["bash", "./build/build.sh"]
+  }
   source = "../../../../terraform_modules/lambda"
 }
 
