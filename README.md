@@ -42,6 +42,9 @@ Run `terragrunt run-all apply` from the desired environment directory to deploy.
 - AWS credentials configured (via the AWS CLI or environment variables).
 - Terraform **1.3+** and Terragrunt **0.47+** installed.
 - Access to the Amazon Bedrock service in your AWS account.
+## Bedrock model
+The Lambda uses the `BEDROCK_MODEL_ID` variable to pick a model. For image generation set this to `amazon.titan-image-generator-v1` in the environment terragrunt files.
+
 
 ## Deploying environments
 
@@ -62,17 +65,19 @@ endpoint:
   "imagen": "URL de la imagen",
   "titulo": "Título principal",
   "subtitulo": "Subtítulo",
-  "beneficios": "Lista o descripción de beneficios",
+  "beneficios": ["Beneficio 1", "Beneficio 2", "Beneficio 3"],
   "cta": "Texto del botón CTA"
 }
 ```
+
+The `beneficios` field must be an array of strings. When using the sample front‑end, enter one benefit per line in the textarea and the script will split them into the required array format.
 
 An invocation using `curl` might look like:
 
 ```bash
 curl -X POST \
   -H "Content-Type: application/json" \
-  -d '{"imagen":"https://example.com/hero.jpg","titulo":"Mi producto","subtitulo":"Subtítulo","beneficios":"Beneficio 1\nBeneficio 2","cta":"Comprar"}' \
+  -d '{"imagen":"https://example.com/hero.jpg","titulo":"Mi producto","subtitulo":"Subtítulo","beneficios":["Beneficio 1","Beneficio 2"],"cta":"Comprar"}' \
   $(terragrunt output -raw api_endpoint)
 ```
 
