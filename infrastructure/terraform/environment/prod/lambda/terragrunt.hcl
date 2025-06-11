@@ -37,7 +37,7 @@ inputs = merge(local.environment_vars,
   input_bucket_name  = dependency.input_bucket.outputs.bucket_name
   input_key          = "index.html"
   output_bucket_name = dependency.output_bucket.outputs.bucket_name
-  bedrock_model_id   = "anthropic.claude-v2"
+  bedrock_model_id   = "amazon.titan-image-generator-v1"
   cloudfront_domain  = dependency.cloudfront.outputs.distribution_domain_name
 }
 )

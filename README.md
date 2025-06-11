@@ -42,6 +42,9 @@ Run `terragrunt run-all apply` from the desired environment directory to deploy.
 - AWS credentials configured (via the AWS CLI or environment variables).
 - Terraform **1.3+** and Terragrunt **0.47+** installed.
 - Access to the Amazon Bedrock service in your AWS account.
+## Bedrock model
+The Lambda uses the `BEDROCK_MODEL_ID` variable to pick a model. For image generation set this to `amazon.titan-image-generator-v1` in the environment terragrunt files.
+
 
 ## Deploying environments
 
