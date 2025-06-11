@@ -98,6 +98,21 @@ terragrunt output -raw distribution_domain_name
 
 Navigate to that domain or open the object from the output S3 bucket to view the resulting landing page.
 
+## Sample response
+
+The Lambda returns a JSON body similar to the following on success:
+
+```json
+{
+  "htmlUrl": "https://bucket.s3.amazonaws.com/12345.html?AWSAccessKeyId=...",
+  "imagePresignedUrl": "https://bucket.s3.amazonaws.com/images/67890.png?AWSAccessKeyId=...",
+  "imageS3Url": "s3://bucket/images/67890.png",
+  "promptUsado": "texto del prompt utilizado"
+}
+```
+
+The script in `web/main.js` expects these fields to be present in the response.
+
 
 ## Serving the sample web page
 
@@ -126,9 +141,9 @@ Follow these steps to try the simple front‑end included under `web/`:
 
 Submitting the form sends a JSON body containing `imagen`, `titulo`, `subtitulo`,
 `beneficios` and `cta` to the configured API Gateway endpoint. API Gateway invokes
-the Lambda function, which
-returns the location of the generated page. The script in `main.js` redirects
-the browser to that URL (using `cloudfrontUrl` if only a path is returned).
+the Lambda function, which returns a JSON object with `htmlUrl`, `imagePresignedUrl`,
+`imageS3Url` and `promptUsado`. The script in `web/main.js` uses `htmlUrl` to
+redirect the browser to the generated page.
 
 
 
