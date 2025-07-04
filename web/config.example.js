@@ -4,3 +4,5 @@ const config = {
   userPoolId: 'us-west-2_fppfOPjlg',
   userPoolClientId: '58q1dlgb5vbacdjro446ulgd6g'
 };
+
+// NOTE: The API endpoint must support POST /chat-landing for chat-based landing page generation.

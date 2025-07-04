@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title id="titulo">Default Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;400&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Roboto', Arial, sans-serif;
+            background: linear-gradient(120deg, #f8fafc 0%, #e0e7ff 100%);
+            color: #22223b;
+        }
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 8px 32px rgba(60, 60, 120, 0.12);
+            padding: 32px 28px 40px 28px;
+            text-align: center;
+        }
+        #hero-image {
+            width: 100%;
+            max-width: 480px;
+            height: auto;
+            border-radius: 14px;
+            margin: 0 auto 28px auto;
+            box-shadow: 0 4px 16px rgba(60, 60, 120, 0.10);
+            display: block;
+            background: #e0e7ff;
+            transition: box-shadow 0.3s;
+        }
+        h1#titulo {
+            font-family: 'Montserrat', Arial, sans-serif;
+            font-size: 2.5rem;
+            margin: 0 0 12px 0;
+            letter-spacing: -1px;
+            color: #3a3a7c;
+        }
+        h2#subtitulo {
+            font-size: 1.3rem;
+            font-weight: 400;
+            color: #4f4f7a;
+            margin: 0 0 24px 0;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 28px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        ul li {
+            background: #e0e7ff;
+            border-radius: 8px;
+            padding: 12px 18px;
+            font-size: 1.08rem;
+            color: #2d314d;
+            box-shadow: 0 2px 8px rgba(60, 60, 120, 0.04);
+            transition: background 0.2s;
+        }
+        ul li:hover {
+            background: #c7d2fe;
+        }
+        #cta {
+            display: inline-block;
+            margin-top: 18px;
+            padding: 16px 38px;
+            font-size: 1.2rem;
+            font-family: 'Montserrat', Arial, sans-serif;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(90deg, #6366f1 0%, #7c3aed 100%);
+            border: none;
+            border-radius: 32px;
+            box-shadow: 0 4px 16px rgba(60, 60, 120, 0.10);
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            animation: pop 0.7s cubic-bezier(.68,-0.55,.27,1.55) 1;
+        }
+        #cta:hover {
+            background: linear-gradient(90deg, #7c3aed 0%, #6366f1 100%);
+            transform: scale(1.06);
+        }
+        @keyframes pop {
+            0% { transform: scale(0.8); }
+            80% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 16px 4vw 24px 4vw;
+            }
+            h1#titulo {
+                font-size: 1.5rem;
+            }
+            h2#subtitulo {
+                font-size: 1rem;
+            }
+            #hero-image {
+                max-width: 98vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img id="hero-image" src="" alt="Hero Image" />
+        <h1 id="titulo">Default Title</h1>
+        <h2 id="subtitulo">Default Subtitle</h2>
+        <ul>
+            <li id="beneficio1">Benefit 1</li>
+            <li id="beneficio2">Benefit 2</li>
+            <li id="beneficio3">Benefit 3</li>
+        </ul>
+        <button id="cta">Call to Action</button>
+    </div>
+</body>
+</html> 

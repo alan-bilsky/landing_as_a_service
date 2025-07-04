@@ -30,3 +30,7 @@ variable "bedrock_model_id" {
 variable "cloudfront_domain" {
   type = string
 }
+
+variable "api_gateway_id" {
+  type = string
+}

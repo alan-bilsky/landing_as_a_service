@@ -1,21 +1,11 @@
-data "archive_file" "lambda_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/build"       # <-- see below
-  output_path = "${path.module}/lambda.zip"
-  excludes    = ["*.tf", "*.md"]             # optional filters
-}
-
-
 resource "aws_lambda_function" "this" {
-  depends_on       = [null_resource.build_lambda]
   function_name    = var.function_name
   role             = var.lambda_role_arn
   handler          = "handler.handler"
   runtime          = "python3.9"
-  filename         = "${path.module}/lambda.zip"
-  source_code_hash = filebase64sha256("${path.module}/lambda.zip")
+  filename         = "${path.module}/build/lambda.zip"
+  source_code_hash = filebase64sha256("${path.module}/build/lambda.zip")
   timeout          = var.timeout
-
 
   environment {
     variables = {
@@ -28,15 +18,12 @@ resource "aws_lambda_function" "this" {
   }
 }
 
-resource "null_resource" "build_lambda" {
-  # run on every plan/apply
-  triggers = {
-    rebuild = "${timestamp()}"
-  }
 
-  provisioner "local-exec" {
-    command     = "bash ${path.module}/build/build.sh"
-    working_dir = "${path.module}"
-  }
 
+resource "aws_lambda_permission" "apigw_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.this.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "arn:aws:execute-api:${var.region}:${var.account_id}:${var.api_gateway_id}/*/*/chat-landing"
 }

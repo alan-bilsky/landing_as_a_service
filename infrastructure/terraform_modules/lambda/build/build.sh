@@ -10,7 +10,7 @@ rm -f "$ZIP_NAME"
 # Install dependencies if a requirements file exists
 if [ -f requirements.txt ]; then
   temp_dir="$(mktemp -d)"
-  pip install -r requirements.txt -t "$temp_dir"
+  pip3 install -r requirements.txt -t "$temp_dir"
   (cd "$temp_dir" && zip -r9 "$SCRIPT_DIR/$ZIP_NAME" .)
   rm -rf "$temp_dir"
 fi

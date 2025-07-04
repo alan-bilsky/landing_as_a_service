@@ -1,5 +1,32 @@
 (function(){
     let idToken = null;
+    let chatHistory = [];
+
+    function addMessage(text, sender = 'bot', isError = false) {
+        const chatbox = document.getElementById('chatbox');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'msg' + (sender === 'user' ? ' user' : '') + (isError ? ' error' : '');
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.innerHTML = text;
+        msgDiv.appendChild(bubble);
+        chatbox.appendChild(msgDiv);
+        chatbox.scrollTo({ top: chatbox.scrollHeight, behavior: 'smooth' });
+    }
+
+    function showUserMessage(text) {
+        addMessage(`<b>You:</b> ${text}`, 'user');
+    }
+    function showBotMessage(text, isLink) {
+        if (isLink || (typeof text === 'string' && text.startsWith('http'))) {
+            addMessage(`<b>Landing Page:</b> <a href="${text}" target="_blank">${text}</a>`, 'bot');
+        } else {
+            addMessage(text, 'bot');
+        }
+    }
+    function showErrorMessage(text) {
+        addMessage(`<b>Error:</b> ${text}`, 'bot', true);
+    }
 
     document.getElementById('login').addEventListener('click', function() {
         const username = document.getElementById('username').value;
@@ -24,35 +51,49 @@
             onSuccess: function(result) {
                 idToken = result.getIdToken().getJwtToken();
                 document.getElementById('auth').style.display = 'none';
-                document.getElementById('form').style.display = 'block';
+                document.getElementById('chat-container').style.display = 'block';
             },
             onFailure: function(err) {
                 alert(err.message || JSON.stringify(err));
+            },
+            newPasswordRequired: function(userAttributes, requiredAttributes) {
+                var newPassword = prompt("You must set a new password for your account:");
+                user.completeNewPasswordChallenge(newPassword, {}, this);
             }
         });
     });
 
-    document.getElementById('submit').addEventListener('click', function() {
-        const payload = {
-            imagen: document.getElementById('imagen').value,
-            titulo: document.getElementById('titulo').value,
-            subtitulo: document.getElementById('subtitulo').value,
-            beneficios: document.getElementById('beneficios').value.split('\n'),
-            cta: document.getElementById('cta').value
-        };
-        fetch(config.apiEndpoint, {
+    document.getElementById('send-chat').addEventListener('click', function() {
+        const input = document.getElementById('chat-input');
+        const sourceInput = document.getElementById('source-url');
+        const prompt = input.value.trim();
+        const sourceUrl = sourceInput.value.trim();
+        if (!prompt) return;
+        showUserMessage(prompt);
+        input.value = '';
+        showBotMessage('Generating landing page, please wait...');
+        const body = { prompt };
+        if (sourceUrl) body.source_url = sourceUrl;
+        fetch(config.apiEndpoint + '/chat-landing', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': idToken
+                'Authorization': localStorage.getItem('idToken') || ''
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(body)
         })
         .then(r => r.json())
         .then(data => {
-            const url = data.htmlUrl || (data.url ? data.url : config.cloudfrontUrl + '/' + data.path);
-            window.location.href = url;
+            if (data.htmlUrl) {
+                showBotMessage(data.htmlUrl, true);
+            } else if (data.error) {
+                showErrorMessage(data.error);
+            } else {
+                showBotMessage('Unexpected response.');
+            }
         })
-        .catch(err => alert('Error: ' + err));
+        .catch(err => {
+            showErrorMessage('Error: ' + err);
+        });
     });
 })();
