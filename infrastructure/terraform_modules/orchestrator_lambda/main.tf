@@ -10,10 +10,12 @@ resource "aws_lambda_function" "orchestrator" {
 
   environment {
     variables = {
-      FETCH_SITE_LAMBDA_NAME  = var.fetch_site_lambda_name
-      GEN_LANDING_LAMBDA_NAME = var.gen_landing_lambda_name
-      INJECT_HTML_LAMBDA_NAME = var.inject_html_lambda_name
-      STATUS_BUCKET           = var.status_bucket_name
+      FETCH_SITE_LAMBDA_NAME    = var.fetch_site_lambda_name
+      GEN_LANDING_LAMBDA_NAME   = var.gen_landing_lambda_name
+      INJECT_HTML_LAMBDA_NAME   = var.inject_html_lambda_name
+      URL_ANALYSIS_LAMBDA_NAME  = var.url_analysis_lambda_name
+      COMPANY_LANDING_LAMBDA_NAME = var.company_landing_lambda_name
+      STATUS_BUCKET             = var.status_bucket_name
     }
   }
 

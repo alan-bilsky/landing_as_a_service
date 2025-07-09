@@ -34,6 +34,16 @@ variable "inject_html_lambda_name" {
   description = "Name of the inject_html Lambda function"
 }
 
+variable "url_analysis_lambda_name" {
+  type        = string
+  description = "Name of the url_analysis Lambda function"
+}
+
+variable "company_landing_lambda_name" {
+  type        = string
+  description = "Name of the company_landing Lambda function"
+}
+
 variable "status_bucket_name" {
   type        = string
   description = "Name of the S3 bucket for storing job status"

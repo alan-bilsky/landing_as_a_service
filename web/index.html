@@ -13,10 +13,30 @@
             <h1>Create Landing Page</h1>
             <div id="chat-container">
                 <div id="chatbox"></div>
+                <div class="flow-selector">
+                    <h3>Choose Generation Mode:</h3>
+                    <label class="flow-option">
+                        <input type="radio" name="flow-type" value="injection" checked />
+                        <span class="flow-label">
+                            <strong>Injection Mode</strong>
+                            <small>Generate landing content and inject it into the target website</small>
+                        </span>
+                    </label>
+                    <label class="flow-option">
+                        <input type="radio" name="flow-type" value="company_landing" />
+                        <span class="flow-label">
+                            <strong>Company Landing Mode</strong>
+                            <small>Create a standalone landing page based on the company's website</small>
+                        </span>
+                    </label>
+                </div>
                 <div class="input-row">
                     <input id="source-url" type="text" placeholder="Enter website URL..." />
                     <input id="prompt" type="text" placeholder="Describe your industry or landing page idea..." />
                     <button id="send-chat" class="send-btn">Generate Landing Page</button>
+                </div>
+                <div id="prompt-help" class="help-text">
+                    <strong>Injection Mode:</strong> Enter both URL and industry description to generate content that will be injected into the target website.
                 </div>
             </div>
         </div>

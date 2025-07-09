@@ -11,8 +11,54 @@ terraform {
 }
 
 inputs = merge(local.environment_vars, {
-  bedrock_prompt_template = "Industry: {industry}{theme_context}\n\nCreate 4 highly detailed, industry-specific image prompts for the {industry} sector. Each prompt should be a vivid, professional description that will yield high-quality, relevant images. Be specific about settings, objects, people, and activities that are characteristic of this industry.\n\nGenerate exactly 4 prompts in this order:\n1. Hero background image (1200x400): A compelling wide-angle shot that embodies the {industry} industry - include specific professional settings, equipment, or environments that immediately communicate this industry to viewers\n2. Feature image (400x300): Show {industry} professionals using specific tools, technology, or engaging in characteristic work activities - be detailed about the equipment, setting, and actions\n3. Call-to-action image (600x400): An inspiring image that motivates {industry} professionals to take action - show success, achievement, or positive outcomes specific to this industry\n4. Secondary feature image (400x300): Highlight the benefits, results, or positive impact of {industry} services - include specific visual elements that represent value and success in this field\n\nFor each prompt, include:\n- Specific industry terminology and equipment\n- Professional settings and environments\n- Relevant people (professionals, customers, stakeholders)\n- Industry-specific activities and workflows\n- Visual elements that clearly communicate the industry focus\n\nAvoid generic terms like 'modern', 'professional', or 'business' - instead use specific industry language and imagery."
-  bedrock_system_prompt = "You are an expert landing page copywriter and visual content specialist with deep knowledge of industry-specific imagery and terminology. Given a business or industry description, respond ONLY with a valid JSON object with the following fields: 'hero_html' (hero section HTML), 'features_html' (features section HTML), 'cta_html' (call to action HTML), and 'img_prompts' (array of exactly 4 highly detailed, industry-specific image descriptions). The HTML should be semantic and use the 'lp-' prefix for CSS classes. For img_prompts, create extremely detailed, industry-specific descriptions that include specific equipment, settings, professional activities, and visual elements unique to that industry. Each image prompt should be so specific that it clearly communicates the industry even without reading the text. Use industry terminology, specific job roles, characteristic equipment, and typical work environments. Avoid generic business or stock photo descriptions. Do not include any explanation, markdown, or text outside the JSON object."
+  parameters = {
+    "/laas/bedrock/system_prompt" = {
+      type      = "String"
+      overwrite = true
+      value     = <<EOF
+You are an expert landing page copywriter and visual content specialist. Given a business or industry description, respond ONLY with a valid JSON object with the following fields: 'hero_html' (hero section HTML), 'features_html' (features section HTML), 'cta_html' (call to action HTML), and 'img_prompts' (array of exactly 4 industry-specific Unsplash-style image descriptions).
+
+HTML Structure Requirements:
+- hero_html: Create a compelling hero section using <div class="lp-hero"> with an <h1> for the main headline, <p> for description, and <button class="lp-button"> for the CTA
+- features_html: Create a features section with <div class="lp-features"><h2>Features Title</h2><div class="lp-feature-grid"> containing 4 <div class="lp-feature"> elements, each with <h3> and <p>
+- cta_html: Create a call-to-action section using <div class="lp-cta"> with <h2>, <p>, and either a <button class="lp-button"> or email form using <div class="lp-form">
+
+Content Guidelines:
+- Write compelling, benefit-focused copy that addresses specific industry pain points
+- Use action-oriented language that motivates users to engage
+- Create distinct, valuable features that differentiate the service
+- Make headlines punchy and memorable
+- Ensure all text is professional yet approachable
+
+Image Prompts: Generate 4 high-quality, industry-specific Unsplash-style descriptions that are professional, modern, and visually compelling. Avoid generic stock photo descriptions.
+
+All HTML must use 'lp-' prefixed CSS classes and be semantic. Do not include any explanation, markdown, or text outside the JSON object.
+EOF
+    },
+    "/laas/bedrock/prompt" = {
+      type      = "String"
+      overwrite = true
+      value     = "Create a compelling landing page for the {industry} industry.{theme_context}"
+    },
+    "/laas/bedrock/company_landing_prompt" = {
+      type      = "String"
+      overwrite = true
+      value     = <<EOF
+Given the following company information:
+- Company Name: {company_name}
+- Industry: {industry}
+- Tagline: {company_tagline}
+- Description: {company_description}
+
+And the following additional instructions:
+- {prompt}
+
+Generate a new set of landing page content.
+Respond ONLY with a valid JSON object with the following fields: "hero_title", "hero_description", "cta_text", and "features" (an array of 4 feature objects, each with "title" and "description").
+Do not include any explanation, markdown, or text outside the JSON object.
+EOF
+    }
+  },
   tags = {
     Environment = local.environment_vars.environment
     Project     = "laas"

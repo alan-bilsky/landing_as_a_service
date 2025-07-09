@@ -137,7 +137,7 @@ deploy: check-deps check-aws build ## Deploy all infrastructure and Lambda funct
 	@echo "$(BLUE)The three-step workflow is now ready:$(NC)"
 	@echo "  1. fetch_site → 2. gen_landing → 3. inject_html"
 	@echo ""
-	@echo "$(YELLOW)API Endpoint:$(NC) $$(cd $(TERRAGRUNT_DIR)/api_gateway && terragrunt output -raw api_gateway_url 2>/dev/null || echo 'Run: make get-endpoint')"
+	@echo "$(YELLOW)API Endpoint:$(NC) $$(cd $(TERRAGRUNT_DIR)/api_gateway && terragrunt output -raw api_endpoint 2>/dev/null || echo 'Run: make get-endpoint')"
 
 # Deploy with confirmation
 deploy-confirm: check-deps check-aws build plan ## Deploy with manual confirmation
@@ -148,7 +148,7 @@ deploy-confirm: check-deps check-aws build plan ## Deploy with manual confirmati
 # Get API endpoint
 get-endpoint: ## Get the deployed API Gateway endpoint URL
 	@echo "$(BLUE)API Gateway Endpoint:$(NC)"
-	@cd $(TERRAGRUNT_DIR)/api_gateway && ENV=$(ENV) terragrunt output -raw api_gateway_url 2>/dev/null || echo "API Gateway not deployed yet"
+	@cd $(TERRAGRUNT_DIR)/api_gateway && ENV=$(ENV) terragrunt output -raw api_endpoint 2>/dev/null || echo "API Gateway not deployed yet"
 
 # Get CloudFront URL
 get-cloudfront: ## Get the CloudFront distribution URL

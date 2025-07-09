@@ -102,6 +102,69 @@ h1 {
     font-weight: 500;
 }
 
+/* Flow Selector */
+.flow-selector {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.flow-selector h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.1rem;
+    color: #3a3a7c;
+    font-weight: 600;
+}
+
+.flow-option {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.flow-option:hover {
+    background: #e2e8f0;
+}
+
+.flow-option input[type="radio"] {
+    margin-right: 10px;
+    accent-color: #6366f1;
+}
+
+.flow-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.flow-label strong {
+    color: #2d314d;
+    font-size: 1rem;
+}
+
+.flow-label small {
+    color: #64748b;
+    font-size: 0.875rem;
+    line-height: 1.3;
+}
+
+/* Help Text */
+.help-text {
+    margin-top: 8px;
+    padding: 12px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #475569;
+    line-height: 1.4;
+}
+
 /* Form Inputs */
 #chat-input {
     width: 100%;
@@ -177,6 +240,22 @@ h1 {
     
     h1 {
         font-size: 1.2rem;
+    }
+    
+    .flow-selector {
+        padding: 12px;
+    }
+    
+    .flow-option {
+        padding: 6px;
+    }
+    
+    .flow-label strong {
+        font-size: 0.9rem;
+    }
+    
+    .flow-label small {
+        font-size: 0.8rem;
     }
 }
 
