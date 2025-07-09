@@ -1,4 +1,4 @@
-FROM public.ecr.aws/lambda/nodejs:18
+FROM --platform=linux/amd64 public.ecr.aws/lambda/nodejs:16
 
 # Install dependencies
 COPY build/package.json build/package-lock.json ./

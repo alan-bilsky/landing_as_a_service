@@ -1,0 +1,39 @@
+{
+  "name": "landing_as_a_service",
+  "version": "1.0.0",
+  "description": "Landing as a Service - Generate themed landing pages using AWS Bedrock",
+  "main": "web/index.html",
+  "scripts": {
+    "test": "npm run test:frontend",
+    "test:frontend": "npm run lint:html && npm run lint:js",
+    "lint:html": "htmlhint web/*.html",
+    "lint:js": "eslint web/*.js",
+    "dev": "python -m http.server 8080 --directory web",
+    "build": "echo 'No build step required for static frontend'"
+  },
+  "keywords": [
+    "landing-page",
+    "aws",
+    "bedrock",
+    "terraform",
+    "serverless"
+  ],
+  "author": "Landing as a Service Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^8.57.0",
+    "eslint": "^8.57.0",
+    "htmlhint": "^1.1.4",
+    "lighthouse": "^11.7.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "."
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1692.0"
+  }
+}

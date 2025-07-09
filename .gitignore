@@ -1,9 +1,163 @@
-web/config.js
-.terra*
+# ====================================================================
+# Landing as a Service (LaaS) - Comprehensive .gitignore
+# ====================================================================
+
+# System Files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Keep .cursor/ as it contains project-specific rules
+# .cursor/
+
+# Environment Configuration
+# Note: web/config.js is needed for frontend to work - DO NOT ignore it
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# AWS/Terraform
+.terra*
 .terragrunt-cache/
 .terraform/
-.vscode/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
+*.tfstate
 
-infrastructure/terraform_modules/lambda/lambda.zip
-infrastructure/terraform_modules/lambda/__pycache__/
+# Lambda Build Artifacts
+infrastructure/terraform_modules/*/build/lambda.zip
+infrastructure/terraform_modules/*/build/lambda-*.zip
+infrastructure/terraform_modules/*/build/__pycache__/
+infrastructure/terraform_modules/*/build/*.pyc
+
+# Python Dependencies in Lambda Build Directories
+infrastructure/terraform_modules/*/build/boto3/
+infrastructure/terraform_modules/*/build/botocore/
+infrastructure/terraform_modules/*/build/aws_lambda_powertools/
+infrastructure/terraform_modules/*/build/aws_xray_sdk/
+infrastructure/terraform_modules/*/build/pydantic/
+infrastructure/terraform_modules/*/build/pydantic_core/
+infrastructure/terraform_modules/*/build/s3transfer/
+infrastructure/terraform_modules/*/build/jmespath/
+infrastructure/terraform_modules/*/build/dateutil/
+infrastructure/terraform_modules/*/build/urllib3/
+infrastructure/terraform_modules/*/build/wrapt/
+infrastructure/terraform_modules/*/build/annotated_types/
+infrastructure/terraform_modules/*/build/typing_extensions.py
+infrastructure/terraform_modules/*/build/six.py
+infrastructure/terraform_modules/*/build/bs4/
+infrastructure/terraform_modules/*/build/soupsieve/
+infrastructure/terraform_modules/*/build/typing_inspection/
+infrastructure/terraform_modules/*/build/bin/
+infrastructure/terraform_modules/*/build/*dist-info/
+
+# Node.js Dependencies
+infrastructure/terraform_modules/*/build/node_modules/
+infrastructure/terraform_modules/*/build/package-lock.json
+
+# Test and Debug Files
+test_*.py
+debug_*.py
+fix_*.py
+*_test.py
+*_debug.py
+
+# Temporary JSON and Binary Files
+*.json
+*.b64
+!package.json
+!package-lock.json
+!tsconfig.json
+!jest.config.json
+!terraform.json
+!terragrunt.json
+!tests/pytest.ini
+!tests/conftest.py
+!tests/test_*.py
+!tests/requirements.txt
+
+# Deployment temporary files
+deployed_*.txt
+response*.json
+payload*.b64
+final_*.json
+corrected_*.json
+test_*.json
+inject_*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual Environments
+tests/venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Documentation (temporary)
+FIXES_APPLIED.md
+TESTING.md
+DEPLOYMENT.md
+
+# Temporary Scripts
+deploy_all_fast.sh
+deploy_fetch_site_docker.sh
+deploy_optimized.sh
+deploy_simple.sh
+show_*.sh
+test_*.sh
+cleanup_repository.sh
+
+# Logs
+*.log
+logs/
+*.log.*

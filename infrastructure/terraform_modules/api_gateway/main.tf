@@ -4,7 +4,7 @@ resource "aws_apigatewayv2_api" "this" {
 
   cors_configuration {
     allow_origins = ["*"]
-    allow_methods = ["OPTIONS", "POST"]
+    allow_methods = ["OPTIONS", "POST", "GET"]
     allow_headers = ["Content-Type", "Authorization"]
   }
 }
@@ -27,9 +27,21 @@ resource "aws_apigatewayv2_route" "post" {
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
-resource "aws_apigatewayv2_route" "chat_landing" {
+resource "aws_apigatewayv2_route" "chat" {
   api_id    = aws_apigatewayv2_api.this.id
-  route_key = "POST /chat-landing"
+  route_key = "POST /chat"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "status" {
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = "GET /status/{jobId}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "options" {
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = "OPTIONS /{proxy+}"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
@@ -51,6 +63,14 @@ resource "aws_cloudwatch_log_resource_policy" "apigw_access" {
       }
     ]
   })
+}
+
+resource "aws_lambda_permission" "apigw_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = data.aws_lambda_function.target.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
 
 resource "aws_apigatewayv2_stage" "default" {

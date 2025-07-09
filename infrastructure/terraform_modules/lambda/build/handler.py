@@ -1,393 +1,491 @@
-"""Lambda handler that generates landing pages and images using AWS Bedrock."""
+"""Lambda handler for gen_landing - generates landing page content using AWS Bedrock."""
 
 import json
 import os
-import uuid
-import base64
 import random
-import time
 import re
-import requests
-from bs4 import BeautifulSoup
-import cssutils
+import time
+import uuid
+from typing import Dict, List, Optional, Tuple, Any
 
 import boto3
+import requests
+from aws_lambda_powertools import Logger, Tracer, Metrics
+from aws_lambda_powertools.utilities.typing import LambdaContext
+from bs4 import BeautifulSoup, Tag
+# No longer using pydantic validation
 
-# Suppress almost all cssutils warnings
-cssutils.log.setLevel('FATAL')
-
-BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-west-2")
-
-s3_client = boto3.client("s3")
-bedrock_runtime = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
-
-ESTILO_LAAS = (
-    "obligatory: both hands holding device naturally, five fingers each hand, realistic grip. no distortion. PROPORTIONAL. centered symmetrical face, natural proportions, professional headshot quality. "
-    "Ultra realistic professional photograph, DSLR quality. "
-    "Person from America with Yellow clothing element (#FFE600) or detail. "
-    "smile, device screen-away, correct anatomy, business background, "
-    "studio softbox, shallow DOF, ISO 200."
-    "camera_face = Canon EOS R5, 85mm f/1.4, ISO 100. "
-    "camera_hands = Nikon D850, 50mm f/2.8, macro detail. "
-    "camera_business = Sony A7R IV, 24-70mm f/2.8, commercial lighting. "
-    "Sharp focus, no floating objects, no artificial elements. "
+from models import (
+    BedrockPayload,
+    BedrockResponse,
+    GenerationRequest,
+    GenerationResponse,
+    LandingContent,
+    SSMPrompts,
+    ThemeInfo,
 )
 
-# Add this at the top-level for reuse
-CORS_HEADERS = {
+# Initialize Powertools
+logger = Logger()
+tracer = Tracer()
+metrics = Metrics()
+
+# Environment variables
+BEDROCK_REGION: str = os.environ.get("BEDROCK_REGION", "us-west-2")
+
+# AWS clients
+s3_client = boto3.client("s3")
+bedrock_runtime = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+ssm_client = boto3.client("ssm")
+
+# CORS headers
+CORS_HEADERS: Dict[str, str] = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type,Authorization",
-    "Access-Control-Allow-Methods": "OPTIONS,POST"
+    "Access-Control-Allow-Methods": "OPTIONS,POST",
 }
 
+# Constants
+MAX_RETRIES: int = 3
+BASE_DELAY: float = 1.0
+MAX_TOTAL_TIME: int = 120
+REQUEST_TIMEOUT: int = 5
 
-def generate_landing_fields_from_prompt(prompt, bedrock_runtime, llm_model_id):
-    """Use Bedrock LLM to generate structured landing page fields from a prompt."""
-    system_prompt = (
-        "You are an expert landing page copywriter. Given a business or industry description, respond ONLY with a valid JSON object with the following fields: "
-        "'titulo' (title), 'subtitulo' (subtitle), 'beneficios' (list of 3 benefits), 'cta' (call to action), and 'imagen' (image prompt for a hero image). "
-        "Do not include any explanation, markdown, or text outside the JSON object."
-    )
-    user_prompt = f"Business/Industry: {prompt}"
-    # Anthropic Claude v2 expects 'prompt', 'max_tokens_to_sample', 'temperature'
-    prompt = (
-        f"{system_prompt}\n\nHuman: {user_prompt}\n\nAssistant:"
-    )
-    payload = {
-        "prompt": prompt,
-        "max_tokens_to_sample": 512,
-        "temperature": 0.7
-    }
-    response = bedrock_runtime.invoke_model(
-        modelId=llm_model_id,
-        body=json.dumps(payload),
-        contentType="application/json",
-        accept="application/json",
-    )
-    response_body = response["body"].read().decode("utf-8")
-    print("LLM raw response:", response_body)
+
+class BedrockError(Exception):
+    """Custom exception for Bedrock-related errors."""
+    pass
+
+
+class SSMError(Exception):
+    """Custom exception for SSM-related errors."""
+    pass
+
+
+class LandingValidationError(Exception):
+    """Custom exception for validation errors."""
+    pass
+
+
+@tracer.capture_method
+def invoke_bedrock_with_retry(
+    bedrock_runtime_client: Any,
+    llm_model_id: str,
+    payload: BedrockPayload,
+    max_retries: int = MAX_RETRIES,
+    base_delay: float = BASE_DELAY,
+    max_total_time: int = MAX_TOTAL_TIME,
+) -> Dict[str, Any]:
+    """
+    Invoke Bedrock with exponential backoff retry and timeout per request.
+    
+    Args:
+        bedrock_runtime_client: Boto3 bedrock-runtime client
+        llm_model_id: The Bedrock model ID to use
+        payload: Validated payload for Bedrock
+        max_retries: Maximum number of retry attempts
+        base_delay: Base delay for exponential backoff
+        max_total_time: Maximum total time for all attempts
+    
+    Returns:
+        Bedrock response dictionary
+    
+    Raises:
+        BedrockError: If Bedrock invocation fails
+        TimeoutError: If operation exceeds time limits
+    """
+    start_time = time.time()
+    
+    for attempt in range(max_retries + 1):
+        # Check if we're approaching the total time limit
+        elapsed_time = time.time() - start_time
+        if elapsed_time >= max_total_time:
+            raise TimeoutError(f"Bedrock invocation exceeded maximum total time of {max_total_time}s")
+        
+        try:
+            logger.info(f"Bedrock invocation attempt {attempt + 1}/{max_retries + 1}")
+            
+            # Convert dataclass to dict for JSON serialization
+            payload_dict = vars(payload)
+            
+            response = bedrock_runtime_client.invoke_model(
+                modelId=llm_model_id,
+                body=json.dumps(payload_dict),
+                contentType="application/json",
+                accept="application/json",
+            )
+            
+            return response
+            
+        except Exception as e:
+            error_message = str(e)
+            logger.warning(f"Bedrock attempt {attempt + 1} failed: {error_message}")
+            
+            # Don't retry on the last attempt
+            if attempt == max_retries:
+                raise BedrockError(f"Bedrock invocation failed after {max_retries + 1} attempts: {error_message}")
+            
+            # Check if we have time for another retry
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= max_total_time - 10:  # Leave 10s buffer for the next attempt
+                raise TimeoutError(f"Not enough time remaining for retry. Elapsed: {elapsed_time}s")
+            
+            # Exponential backoff with jitter
+            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            delay = min(delay, 30)  # Cap at 30 seconds
+            
+            logger.info(f"Retrying Bedrock call in {delay:.2f} seconds...")
+            time.sleep(delay)
+    
+    raise BedrockError("Maximum retry attempts exceeded")
+
+
+@tracer.capture_method
+def get_prompts_from_ssm() -> SSMPrompts:
+    """
+    Retrieve Bedrock prompts from SSM parameters.
+    
+    Returns:
+        SSMPrompts model with validated system and user prompts
+    
+    Raises:
+        SSMError: If SSM parameter retrieval fails
+    """
     try:
+        # Get system prompt from SSM
+        system_prompt_response = ssm_client.get_parameter(
+            Name="/laas/bedrock/system_prompt"
+        )
+        system_prompt = system_prompt_response['Parameter']['Value']
+        
+        # Get prompt template from SSM  
+        prompt_template_response = ssm_client.get_parameter(
+            Name="/laas/bedrock/prompt"
+        )
+        prompt_template = prompt_template_response['Parameter']['Value']
+        
+        return SSMPrompts(
+            system_prompt=system_prompt,
+            prompt_template=prompt_template
+        )
+        
+    except Exception as e:
+        logger.warning(f"Failed to get prompts from SSM, using defaults: {e}")
+        # Fallback to hardcoded prompts
+        system_prompt = (
+            "You are an expert landing page copywriter and visual content specialist. Given a business or industry description, "
+            "respond ONLY with a valid JSON object with the following fields: "
+            "'hero_html' (hero section HTML), 'features_html' (features section HTML), "
+            "'cta_html' (call to action HTML), and 'img_prompts' (array of exactly 4 industry-specific Unsplash-style image descriptions). "
+            "The HTML should be semantic and use the 'lp-' prefix for CSS classes. "
+            "For img_prompts, create vivid, industry-specific descriptions that will yield high-quality, relevant images for the specified industry. "
+            "Each image prompt should be detailed and professional, avoiding generic stock photo descriptions. "
+            "Do not include any explanation, markdown, or text outside the JSON object."
+        )
+        prompt_template = (
+            "Industry: {industry}{theme_context}\n\n"
+            "For images, generate 4 industry-specific Unsplash-style prompts that are highly relevant to the {industry} industry. "
+            "The prompts should be:\n"
+            "1. A hero background image that captures the essence of {industry}\n"
+            "2. A feature image showcasing {industry} technology or processes\n"
+            "3. A call-to-action image that motivates {industry} professionals\n"
+            "4. A secondary feature image highlighting {industry} benefits or outcomes\n\n"
+            "Make each image prompt specific, professional, and visually compelling for the {industry} sector."
+        )
+        
+        return SSMPrompts(
+            system_prompt=system_prompt,
+            prompt_template=prompt_template
+        )
+
+
+@tracer.capture_method
+def build_theme_context(theme_info: ThemeInfo) -> str:
+    """
+    Build theme context string from theme information.
+    
+    Args:
+        theme_info: Validated theme information
+    
+    Returns:
+        Formatted theme context string
+    """
+    theme_context = ""
+    
+    if theme_info.fonts:
+        theme_context += f" Use fonts: {', '.join(theme_info.fonts)}. "
+    
+    if theme_info.color_palette:
+        theme_context += f" Use colors: {', '.join(theme_info.color_palette)}. "
+    
+    if theme_info.logo_url:
+        theme_context += f" Include logo from: {theme_info.logo_url}. "
+    
+    return theme_context
+
+
+@tracer.capture_method
+def generate_landing_content(
+    prompt: str,
+    theme_info: ThemeInfo,
+    bedrock_runtime_client: Any,
+    llm_model_id: str,
+) -> LandingContent:
+    """
+    Use Bedrock LLM to generate structured landing page content.
+    
+    Args:
+        prompt: Industry/business description
+        theme_info: Theme information from target site
+        bedrock_runtime_client: Boto3 bedrock-runtime client
+        llm_model_id: The Bedrock model ID to use
+    
+    Returns:
+        Validated LandingContent model
+    
+    Raises:
+        BedrockError: If content generation fails
+        ValidationError: If generated content is invalid
+    """
+    # Get prompts from SSM parameters
+    ssm_prompts = get_prompts_from_ssm()
+    
+    # Build the prompt with theme context
+    theme_context = build_theme_context(theme_info)
+    
+    # Use the template from SSM with replacements
+    user_prompt = ssm_prompts.prompt_template.format(
+        industry=prompt,
+        theme_context=theme_context
+    )
+    
+    # Create validated payload using Messages API format
+    payload = BedrockPayload(
+        anthropic_version="bedrock-2023-05-31",
+        max_tokens=1024,
+        temperature=0.7,
+        system=ssm_prompts.system_prompt,
+        messages=[
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": user_prompt}]
+            }
+        ]
+    )
+    
+    try:
+        # Use retry logic with exponential backoff
+        response = invoke_bedrock_with_retry(bedrock_runtime_client, llm_model_id, payload)
+        
+        response_body = response["body"].read().decode("utf-8")
+        logger.info("Bedrock response received", extra={"response_length": len(response_body)})
+        
+        # Parse Bedrock response
         response_json = json.loads(response_body)
-        completion_text = response_json.get("completion", "")
-
-        # Print for debugging
-        print("LLM completion text:", completion_text)
-
-        # Try to extract JSON inside a markdown code block (```json ... ``` or ``` ... ```)
+        bedrock_response = BedrockResponse(**response_json)
+        
+        # Extract JSON from the response (get text from first content block)
+        completion_text = ""
+        if bedrock_response.content and len(bedrock_response.content) > 0:
+            first_content = bedrock_response.content[0]
+            if isinstance(first_content, dict) and "text" in first_content:
+                completion_text = first_content["text"]
+        
+        # Try to extract JSON from markdown code blocks first
         match = re.search(r'```(?:json)?\s*({[\s\S]*?})\s*```', completion_text)
         if match:
             json_str = match.group(1)
-            parsed = json.loads(json_str)
-            if isinstance(parsed, dict) and all(k in parsed for k in ["titulo", "subtitulo", "beneficios", "cta", "imagen"]):
-                return parsed
-        # Fallback: extract first JSON object in the text
-        match = re.search(r'\{[\s\S]*?\}', completion_text)
-        if match:
-            parsed = json.loads(match.group(0))
-            if isinstance(parsed, dict) and all(k in parsed for k in ["titulo", "subtitulo", "beneficios", "cta", "imagen"]):
-                return parsed
+        else:
+            # Fallback: extract first JSON object
+            match = re.search(r'\{[\s\S]*?\}', completion_text)
+            if match:
+                json_str = match.group(0)
+            else:
+                raise LandingValidationError("No valid JSON found in Bedrock response")
+        
+        # Parse and validate the JSON
+        try:
+            parsed_json = json.loads(json_str)
+            landing_content = LandingContent(**parsed_json)
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
+            logger.error(f"Invalid JSON in Bedrock response: {e}")
+            raise LandingValidationError(f"Invalid landing content structure: {e}")
+        
+        return landing_content
+        
     except Exception as e:
-        print("Error parsing LLM response:", e, response_body)
-    return None
+        logger.error("Bedrock generation failed", extra={"error": str(e)})
+        raise BedrockError(f"Content generation failed: {str(e)}")
 
 
-def replace_img_src_by_id(html, id_value, new_src):
-    start_tag = f'id="{id_value}"'
-    start_index = html.find(start_tag)
-    if start_index == -1:
-        return html
-    src_index = html.find('src="', start_index)
-    if src_index == -1:
-        return html
-    src_start = src_index + 5
-    src_end = html.find('"', src_start)
-    return html[:src_start] + new_src + html[src_end:]
+@tracer.capture_method
+def store_landing_assets(
+    landing_content: LandingContent,
+    bucket: str,
+    theme_info: ThemeInfo,
+) -> Tuple[str, Dict[str, str]]:
+    """
+    Store landing page assets in S3.
+    
+    Args:
+        landing_content: Validated landing content
+        bucket: S3 bucket name
+        theme_info: Theme information
+    
+    Returns:
+        Tuple of (generation_id, assets_dict)
+    
+    Raises:
+        Exception: If S3 operations fail
+    """
+    generation_id = str(uuid.uuid4())
+    assets: Dict[str, str] = {}
+    
+    try:
+        # Store the landing content JSON
+        content_key = f"generated/{generation_id}/landing_content.json"
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=content_key,
+            Body=json.dumps(vars(landing_content)),
+            ContentType="application/json"
+        )
+        assets["content_key"] = content_key
+        
+        # Store theme information
+        theme_key = f"generated/{generation_id}/theme_info.json"
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=theme_key,
+            Body=json.dumps(vars(theme_info)),
+            ContentType="application/json"
+        )
+        assets["theme_key"] = theme_key
+        
+        logger.info(f"Assets stored successfully", extra={
+            "generation_id": generation_id,
+            "assets": list(assets.keys())
+        })
+        
+        return generation_id, assets
+        
+    except Exception as e:
+        logger.error(f"Failed to store assets", extra={"error": str(e)})
+        raise
 
 
-def replace_tag_by_id(html, id_value, new_text):
-    # Replace the inner text of any tag with the given id (including <title>, <h1>, etc.)
-    pattern = rf'(<([a-zA-Z0-9]+)[^>]*id=["\\\\\'\"]{id_value}["\\\\\'\"][^>]*>)(.*?)(</\2>)'
-    return re.sub(pattern, rf'\1{new_text}\4', html, flags=re.DOTALL)
-
-
-def extract_style_info(html, base_url):
-    soup = BeautifulSoup(html, 'html.parser')
-    styles = {'fonts': set(), 'colors': set(), 'layout': []}
-    # Inline styles and <style> tags
-    for style in soup.find_all('style'):
-        try:
-            css_text = style.string or ''
-            # Filter out rules with unsupported features
-            if any(x in css_text for x in ['var(', 'flex', 'grid']):
-                continue
-            sheet = cssutils.parseString(css_text)
-            for rule in sheet:
-                if rule.type == rule.STYLE_RULE:
-                    if 'color' in rule.style:
-                        styles['colors'].add(rule.style['color'])
-                    if 'background-color' in rule.style:
-                        styles['colors'].add(rule.style['background-color'])
-                    if 'font-family' in rule.style:
-                        styles['fonts'].add(rule.style['font-family'])
-        except Exception as e:
-            print(f"[cssutils] Error parsing inline <style>: {e}")
-    # External CSS
-    for link in soup.find_all('link', rel='stylesheet'):
-        href = link.get('href')
-        if href:
-            if not href.startswith('http'):
-                href = base_url + href if href.startswith('/') else base_url + '/' + href
-            try:
-                css = requests.get(href, timeout=5).text
-                # Filter out rules with unsupported features
-                if any(x in css for x in ['var(', 'flex', 'grid']):
-                    continue
-                sheet = cssutils.parseString(css)
-                for rule in sheet:
-                    if rule.type == rule.STYLE_RULE:
-                        if 'color' in rule.style:
-                            styles['colors'].add(rule.style['color'])
-                        if 'background-color' in rule.style:
-                            styles['colors'].add(rule.style['background-color'])
-                        if 'font-family' in rule.style:
-                            styles['fonts'].add(rule.style['font-family'])
-            except Exception as e:
-                print(f"[cssutils] Error parsing external CSS ({href}): {e}")
-    # Layout hints: look for nav, hero, main, footer, etc.
-    for tag in ['nav', 'header', 'main', 'section', 'footer']:
-        if soup.find(tag):
-            styles['layout'].append(tag)
-    # Fallback: if nothing found, use defaults
-    if not styles['fonts']:
-        styles['fonts'].add('Arial, sans-serif')
-    if not styles['colors']:
-        styles['colors'].add('#333')
-    return styles
-
-
-def handler(event, context):
-    """Generate a landing page from a template stored in S3, or from a chat prompt."""
-    print("Event received:", event)
-
-    input_bucket = os.environ["INPUT_BUCKET"]
-    input_key = os.environ["INPUT_KEY"]
+@logger.inject_lambda_context
+@tracer.capture_lambda_handler
+@metrics.log_metrics
+def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
+    """
+    Generate landing page content using Bedrock and store in S3.
+    
+    Args:
+        event: Lambda event dictionary
+        context: Lambda context
+    
+    Returns:
+        HTTP response dictionary
+    """
+    logger.info("gen_landing Lambda invoked")
+    
+    # Environment variables
     output_bucket = os.environ["OUTPUT_BUCKET"]
-    bedrock_model = os.environ["BEDROCK_MODEL_ID"]
-    llm_model_id = os.environ.get("BEDROCK_LLM_MODEL_ID", "anthropic.claude-v2")
-    cloudfront_domain = os.environ.get("CLOUDFRONT_DOMAIN")
-
-    # Determine the request payload. Support either API Gateway ("body") or n8n style
-    # events where the JSON is nested under node.inputs[0].value.
-    if "node" in event:
-        raw_json_str = event["node"]["inputs"][0]["value"]
-    else:
-        body_content = event.get("body", "")
-        if event.get("isBase64Encoded"):
-            body_content = base64.b64decode(body_content).decode("utf-8")
-        raw_json_str = body_content
-
-    parsed = json.loads(raw_json_str or "{}")
-    source_url = parsed.get('source_url')
-    base_template_html = None
-    style_info = None
-    source_logo_url = None
-    source_favicon_url = None
-    source_colors = None
-    source_fonts = None
-    if source_url:
+    llm_model_id = os.environ.get("BEDROCK_LLM_MODEL_ID", "anthropic.claude-3-sonnet-20240229")
+    
+    try:
+        # Parse and validate input
         try:
-            resp = requests.get(source_url, timeout=10)
-            if resp.status_code == 200:
-                base_template_html = resp.text
-                style_info = extract_style_info(base_template_html, source_url)
-                # Extract logo and favicon
-                soup = BeautifulSoup(base_template_html, 'html.parser')
-                logo_tag = soup.find('img', src=True)
-                if logo_tag:
-                    source_logo_url = logo_tag['src']
-                    if source_logo_url and not source_logo_url.startswith('http'):
-                        source_logo_url = source_url + source_logo_url if source_logo_url.startswith('/') else source_url + '/' + source_logo_url
-                favicon_tag = soup.find('link', rel=lambda x: x and 'icon' in x)
-                if favicon_tag and favicon_tag.get('href'):
-                    source_favicon_url = favicon_tag['href']
-                    if source_favicon_url and not source_favicon_url.startswith('http'):
-                        source_favicon_url = source_url + source_favicon_url if source_favicon_url.startswith('/') else source_url + '/' + source_favicon_url
-                source_colors = list(style_info['colors']) if style_info and style_info['colors'] else None
-                source_fonts = list(style_info['fonts']) if style_info and style_info['fonts'] else None
-                # If the HTML is mostly empty or has no meaningful content, ignore it
-                if len(soup.get_text(strip=True)) < 100:
-                    base_template_html = None
-        except Exception as e:
-            print(f"Error fetching/parsing source_url: {e}")
-
-    # --- THEME EXTRACTION LOGIC ---
-    theme_css = ''
-    theme_logo_url = None
-    theme_favicon_url = None
-    theme_fonts = None
-    theme_colors = None
-    if source_url:
-        try:
-            resp = requests.get(source_url, timeout=10)
-            if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                # Inline all external CSS
-                for link in soup.find_all('link', rel='stylesheet'):
-                    href = link.get('href')
-                    if href:
-                        if not href.startswith('http'):
-                            href = source_url + href if href.startswith('/') else source_url + '/' + href
-                        try:
-                            css = requests.get(href, timeout=5).text
-                            theme_css += f"\n/* {href} */\n" + css
-                        except Exception as e:
-                            print(f"[theme] Error fetching CSS {href}: {e}")
-                # Inline <style> tags
-                for style in soup.find_all('style'):
-                    if style.string:
-                        theme_css += f"\n/* inline style */\n" + style.string
-                # Extract logo
-                logo_tag = soup.find('img', src=True)
-                if logo_tag:
-                    theme_logo_url = logo_tag['src']
-                    if theme_logo_url and not theme_logo_url.startswith('http'):
-                        theme_logo_url = source_url + theme_logo_url if theme_logo_url.startswith('/') else source_url + '/' + theme_logo_url
-                # Extract favicon
-                favicon_tag = soup.find('link', rel=lambda x: x and 'icon' in x)
-                if favicon_tag and favicon_tag.get('href'):
-                    theme_favicon_url = favicon_tag['href']
-                    if theme_favicon_url and not theme_favicon_url.startswith('http'):
-                        theme_favicon_url = source_url + theme_favicon_url if theme_favicon_url.startswith('/') else source_url + '/' + theme_favicon_url
-                # Extract fonts/colors from CSS
-                style_info = extract_style_info(resp.text, source_url)
-                theme_fonts = list(style_info['fonts']) if style_info and style_info['fonts'] else None
-                theme_colors = list(style_info['colors']) if style_info and style_info['colors'] else None
-        except Exception as e:
-            print(f"[theme] Error extracting theme: {e}")
-
-    # --- NEW: Chat endpoint logic ---
-    if "prompt" in parsed and len(parsed) >= 1:
-        chat_prompt = parsed["prompt"]
-        # Enhance prompt with style info if available
-        if style_info:
-            style_str = f"Use the following style: fonts: {', '.join(style_info['fonts'])}; colors: {', '.join(style_info['colors'])}; layout: {', '.join(style_info['layout'])}."
-            chat_prompt = f"{chat_prompt}\n{style_str}"
-        llm_fields = generate_landing_fields_from_prompt(chat_prompt, bedrock_runtime, llm_model_id)
-        if not llm_fields:
+            if "body" in event:
+                body_content = event["body"]
+                if event.get("isBase64Encoded"):
+                    import base64
+                    body_content = base64.b64decode(body_content).decode("utf-8")
+                parsed_body = json.loads(body_content)
+            else:
+                parsed_body = event if isinstance(event, dict) else json.loads(str(event))
+            
+            # Convert theme_info dict to ThemeInfo instance if present
+            if "theme_info" in parsed_body and parsed_body["theme_info"] is not None:
+                theme_info_dict = parsed_body["theme_info"]
+                if isinstance(theme_info_dict, dict):
+                    parsed_body["theme_info"] = ThemeInfo(**theme_info_dict)
+            
+            # Validate request using dataclass
+            request_data = GenerationRequest(**parsed_body)
+            
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
+            logger.error(f"Invalid request format: {e}")
             return {
-                "statusCode": 500,
+                "statusCode": 400,
                 "headers": CORS_HEADERS,
-                "body": json.dumps({"error": "Could not generate landing page fields from prompt."}),
+                "body": json.dumps({"error": f"Invalid request format: {str(e)}"})
             }
-        parsed = llm_fields
-
-    # --- Existing logic below ---
-    prompt_base = parsed.get("imagen", "")
-    if not prompt_base:
+        
+        # Generate landing content using Bedrock
+        theme_info = request_data.theme_info if request_data.theme_info else ThemeInfo()
+        landing_content = generate_landing_content(
+            request_data.prompt,
+            theme_info,
+            bedrock_runtime,
+            llm_model_id
+        )
+        
+        # Store assets in S3
+        generation_id, assets = store_landing_assets(
+            landing_content,
+            output_bucket,
+            theme_info
+        )
+        
+        # Create validated response
+        response_data = GenerationResponse(
+            generation_id=generation_id,
+            assets=assets,
+            status="generated"
+        )
+        
+        logger.info("Landing content generated successfully", extra={
+            "generation_id": generation_id
+        })
+        
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": json.dumps(vars(response_data))
+        }
+        
+    except BedrockError as e:
+        logger.error(f"Bedrock error: {e}")
+        return {
+            "statusCode": 500,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"error": f"Content generation failed: {str(e)}"})
+        }
+    
+    except SSMError as e:
+        logger.error(f"SSM error: {e}")
+        return {
+            "statusCode": 500,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"error": f"Configuration error: {str(e)}"})
+        }
+    
+    except (TypeError, ValueError) as e:
+        logger.error(f"Validation error: {e}")
         return {
             "statusCode": 400,
             "headers": CORS_HEADERS,
-            "body": json.dumps({"error": "El campo 'imagen' est\u00e1 vac\u00edo o no existe."}),
+            "body": json.dumps({"error": f"Validation failed: {str(e)}"})
         }
-
-    prompt_completo = f"{prompt_base}. {ESTILO_LAAS}"
-
-    # Truncate to 512 characters for Bedrock image model
-    MAX_PROMPT_LENGTH = 512
-    if len(prompt_completo) > MAX_PROMPT_LENGTH:
-        prompt_completo = prompt_completo[:MAX_PROMPT_LENGTH]
-
-    payload = {
-        "taskType": "TEXT_IMAGE",
-        "textToImageParams": {
-            "text": prompt_completo
-        },
-        "imageGenerationConfig": {
-            "numberOfImages": 1,
-            "quality": "standard",
-            "height": 1024,
-            "width": 1024,
-            "cfgScale": 8.0,
-            "seed": random.randint(0, 2147483646),
+    
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return {
+            "statusCode": 500,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"error": f"Unexpected error: {str(e)}"})
         }
-    }
-
-    response = bedrock_runtime.invoke_model(
-        modelId=bedrock_model,
-        body=json.dumps(payload),
-        contentType="application/json",
-        accept="application/json",
-    )
-
-    response_body = response["body"].read().decode("utf-8")
-    parsed_response = json.loads(response_body)
-    image_base64 = parsed_response["images"][0]
-
-    # Upload generated image
-    image_key = f"images/{uuid.uuid4()}.png"
-    s3_client.put_object(
-        Bucket=output_bucket,
-        Key=image_key,
-        Body=base64.b64decode(image_base64),
-        ContentType="image/png",
-    )
-
-    # Generate presigned URL for the image (move this up)
-    image_url = s3_client.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": output_bucket, "Key": image_key},
-        ExpiresIn=3600,
-    )
-
-    # --- THEMEABLE TEMPLATE ---
-    template_obj = s3_client.get_object(Bucket=input_bucket, Key=input_key)
-    html_content = template_obj["Body"].read().decode("utf-8")
-    # Inject theme CSS in <head>
-    if theme_css:
-        html_content = html_content.replace('</head>', f'<style>{theme_css}</style></head>')
-    # Replace logo
-    if theme_logo_url:
-        html_content = replace_img_src_by_id(html_content, "logo", theme_logo_url)
-    # Replace favicon
-    if theme_favicon_url:
-        html_content = html_content.replace('<link rel="icon" href="favicon.ico">', f'<link rel="icon" href="{theme_favicon_url}">')
-    # Replace fonts/colors
-    if theme_fonts:
-        html_content = html_content.replace('font-family: Arial, sans-serif;', f'font-family: {theme_fonts[0]}, Arial, sans-serif;')
-    if theme_colors:
-        html_content = html_content.replace(':root {', f':root {{ --primary-color: {theme_colors[0]};')
-    # Inject our content
-    html_content = replace_tag_by_id(html_content, "titulo", parsed.get("titulo", ""))
-    html_content = replace_tag_by_id(html_content, "subtitulo", parsed.get("subtitulo", ""))
-    beneficios = parsed.get("beneficios", ["", "", ""])
-    if len(beneficios) >= 3:
-        html_content = replace_tag_by_id(html_content, "beneficio1", beneficios[0])
-        html_content = replace_tag_by_id(html_content, "beneficio2", beneficios[1])
-        html_content = replace_tag_by_id(html_content, "beneficio3", beneficios[2])
-    html_content = replace_tag_by_id(html_content, "cta", parsed.get("cta", ""))
-    html_content = replace_img_src_by_id(html_content, "hero-image", image_url)
-    print('--- OUTPUT THEMED HTML ---')
-    print(html_content)
-
-    output_key = f"{uuid.uuid4()}.html"
-    s3_client.put_object(
-        Bucket=output_bucket,
-        Key=output_key,
-        Body=html_content.encode("utf-8"),
-        ContentType="text/html",
-    )
-
-    html_url = s3_client.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": output_bucket, "Key": output_key},
-        ExpiresIn=3600,
-    )
-
-    result = {
-        "imageS3Url": f"s3://{output_bucket}/{image_key}",
-        "imagePresignedUrl": image_url,
-        "htmlUrl": html_url,
-        "promptUsado": prompt_completo,
-    }
-
-    return {"statusCode": 200, "headers": CORS_HEADERS, "body": json.dumps(result)}

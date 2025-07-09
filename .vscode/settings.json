@@ -1,6 +1,0 @@
-{
-    "files.exclude": {
-        "**/.terraform*": true,
-        "**/.terragrunt*": true
-    }
-}

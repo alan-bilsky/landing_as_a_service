@@ -1,163 +1,144 @@
-# Landing as a Service Infrastructure
+# Landing as a Service (LaaS)
 
-This repository contains a Terragrunt-based infrastructure setup for a serverless application that generates landing pages using AWS Bedrock. The infrastructure is organized under the `infrastructure/` directory with reusable Terraform modules and environment-specific configurations for `dev` and `prod` in `us-west-2`.
+A plug-and-play web application that generates themed landing pages based on industry prompts and target website URLs. The system uses AWS Bedrock to create landing pages that match the look and feel of existing websites.
 
-## Structure
+## 🚀 Quick Start - Fully Automated Deployment
 
-```
-infrastructure/
-  terraform_modules/        # Reusable Terraform modules
-  terraform/environment/
-    dev/          # Development environment
-    prod/         # Production environment
-```
+### Prerequisites
+- AWS CLI configured with appropriate permissions
+- Docker (for building Puppeteer Lambda)
+- Node.js and Python (for building other Lambdas)
 
-Each environment deploys:
-- S3 buckets for input HTML and generated output
-- IAM roles for the Lambda function
-- A Lambda function that calls Bedrock
-- API Gateway for invoking the Lambda
-- Cognito user pool for authentication
-- CloudFront distribution to serve generated pages
+### One-Command Deployment
 
-Before running Terragrunt you must set the bucket and region for storing
-Terraform state. For example:
-
+1. **Set AWS credentials:**
 ```bash
-export TG_STATE_BUCKET=laas-dev-tfstate
-export TG_REGION=us-west-2
+export AWS_ACCESS_KEY_ID="your_access_key"
+export AWS_SECRET_ACCESS_KEY="your_secret_key" 
+export AWS_SESSION_TOKEN="your_session_token"  # If using temporary credentials
+export AWS_REGION="us-west-2"
 ```
 
-Before applying Terragrunt, build the Lambda deployment package:
-
+2. **Deploy everything:**
 ```bash
-cd infrastructure/terraform_modules/lambda
+bash build_and_deploy_all.sh
+```
+
+This single command will:
+- Build and deploy the Puppeteer Lambda (Docker-based)
+- Build and deploy the Orchestrator Lambda (Python)
+- Build and deploy the Bedrock Lambda (Python)
+- Deploy all infrastructure (S3, IAM, API Gateway, etc.)
+
+**No manual AWS Console steps required!**
+
+## 🎯 How It Works
+
+1. **User Input:** Enter an industry prompt and target website URL
+2. **Puppeteer Lambda:** Extracts theme information (colors, fonts, logos) from the target site
+3. **Orchestrator Lambda:** Coordinates the workflow between services
+4. **Bedrock Lambda:** Generates a themed landing page using AWS Bedrock
+5. **Output:** Returns a complete landing page that matches the target site's theme
+
+## 📁 Project Structure
+
+```
+landing_as_a_service/
+├── build_and_deploy_all.sh          # Main deployment script
+├── infrastructure/
+│   ├── terraform_modules/           # Reusable Terraform modules
+│   │   ├── puppeteer_lambda/        # Puppeteer Lambda (Docker)
+│   │   ├── orchestrator_lambda/     # Orchestrator Lambda (Python)
+│   │   ├── lambda/                  # Bedrock Lambda (Python)
+│   │   ├── api_gateway/             # API Gateway
+│   │   ├── cognito/                 # User authentication
+│   │   ├── cloudfront/              # CDN for serving pages
+│   │   └── s3_bucket/               # S3 buckets
+│   └── terraform/environment/prod/  # Production environment
+└── web/                             # Frontend application
+    ├── index.html                   # Main web interface
+    ├── main.js                      # Frontend logic
+    └── config.example.js            # Configuration template
+```
+
+## 🌐 Running the Web App Locally
+
+1. **Configure the web app:**
+   - Copy the example config and update with your values:
+     ```bash
+     cd web
+     cp config.example.js config.js
+     ```
+   - Edit `config.js` and fill in your API endpoint, Cognito info, etc.
+
+2. **Start a local web server:**
+   - With Python 3:
+```bash
+     python3 -m http.server 8000
+     ```
+   - Or with Node.js:
+     ```bash
+     npx http-server -p 8000
+     ```
+
+3. **Open your browser:**
+   - Go to [http://localhost:8000](http://localhost:8000)
+
+4. **Use the app:**
+   - Enter your prompt and target URL in the web form.
+   - Submit and see the generated landing page!
+
+## 🔧 Configuration
+
+Get the required values from your deployment:
+```bash
+cd infrastructure/terraform/environment/prod
+terragrunt output
+```
+
+## 🏗️ Architecture
+
+- **Frontend:** Simple HTML/JS interface
+- **API Gateway:** RESTful API endpoint
+- **Lambda Functions:** 
+  - Puppeteer: Web scraping and theme extraction
+  - Orchestrator: Workflow coordination
+  - Bedrock: AI-powered content generation
+- **S3:** Storage for input/output files
+- **CloudFront:** CDN for serving generated pages
+- **Cognito:** User authentication (optional)
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+1. **AWS Credentials Expired:** Refresh your temporary credentials
+2. **Docker Build Fails:** Ensure Docker is running and has sufficient resources
+3. **Terragrunt Errors:** Check that the `ENV=prod` variable is set
+
+### Manual Steps (if needed)
+
+If the automated script fails, you can run individual components:
+
+   ```bash
+# Build Puppeteer Lambda
+cd infrastructure/terraform_modules/puppeteer_lambda
+./build/rebuild_and_deploy.sh
+
+# Build Orchestrator Lambda  
+cd infrastructure/terraform_modules/orchestrator_lambda
+./build/build.sh
+
+# Build Bedrock Lambda
+cd infrastructure/terraform_modules/lambda/build
 ./build.sh
+
+# Deploy infrastructure
+cd infrastructure/terraform/environment/prod
+terragrunt run-all apply
 ```
 
-Run `terragrunt run-all apply` from the desired environment directory to deploy.
-
-## Prerequisites
-
-- AWS credentials configured (via the AWS CLI or environment variables).
-- Terraform **1.3+** and Terragrunt **0.47+** installed.
-- Access to the Amazon Bedrock service in your AWS account.
-## Bedrock model
-The Lambda uses the `BEDROCK_MODEL_ID` variable to pick a model. For image generation set this to `amazon.titan-image-generator-v1` in the environment terragrunt files.
-
-
-## Deploying environments
-
-1. Change into the environment directory (`infrastructure/terraform/environment/dev` or `infrastructure/terraform/environment/prod`).
-2. Run `terragrunt run-all init` followed by `terragrunt run-all apply`.
-
-Terragrunt will provision all buckets, roles, the Lambda function, API Gateway, Cognito user pool and CloudFront distribution for that environment.
-
-## Running the front-end and triggering the Lambda
-
-Upload an HTML file (for example `index.html`) to the `s3_input` bucket created
-during deployment. The Lambda reads this template from S3. To trigger the page
-generation you POST a JSON payload with the following fields to the API Gateway
-endpoint:
-
-```
-{
-  "imagen": "URL de la imagen",
-  "titulo": "Título principal",
-  "subtitulo": "Subtítulo",
-  "beneficios": ["Beneficio 1", "Beneficio 2", "Beneficio 3"],
-  "cta": "Texto del botón CTA"
-}
-```
-
-The `beneficios` field must be an array of strings. When using the sample front‑end, enter one benefit per line in the textarea and the script will split them into the required array format.
-
-An invocation using `curl` might look like:
-
-```bash
-curl -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"imagen":"https://example.com/hero.jpg","titulo":"Mi producto","subtitulo":"Subtítulo","beneficios":["Beneficio 1","Beneficio 2"],"cta":"Comprar"}' \
-$(terragrunt output -raw api_endpoint)
-```
-
-You can also test the function directly from the AWS Lambda console. Create a
-new test event using the following JSON payload:
-
-```json
-{
-  "body": "{\"imagen\":\"https://example.com/hero.jpg\",\"titulo\":\"Mi producto\",\"subtitulo\":\"Subtítulo\",\"beneficios\":[\"Beneficio 1\",\"Beneficio 2\"],\"cta\":\"Comprar\"}",
-  "isBase64Encoded": false
-}
-```
-
-A minimal front-end could simply POST the HTML content to this API URL.
-
-Create a `web/config.js` file by copying `web/config.example.js` and fill in
-your values. The file should export a global `config` object with the following
-fields:
-`apiEndpoint`, `cloudfrontUrl`, `userPoolId` and `userPoolClientId`.
-
-## Where to find the generated output
-
-The Lambda writes the generated page to the `s3_output` bucket. It is also served via the CloudFront distribution. Obtain the distribution domain name with:
-
-```bash
-terragrunt output -raw distribution_domain_name
-```
-
-Navigate to that domain or open the object from the output S3 bucket to view the resulting landing page.
-
-## Sample response
-
-The Lambda returns a JSON body similar to the following on success:
-
-```json
-{
-  "htmlUrl": "https://bucket.s3.amazonaws.com/12345.html?AWSAccessKeyId=...",
-  "imagePresignedUrl": "https://bucket.s3.amazonaws.com/images/67890.png?AWSAccessKeyId=...",
-  "imageS3Url": "s3://bucket/images/67890.png",
-  "promptUsado": "texto del prompt utilizado"
-}
-```
-
-The script in `web/main.js` expects these fields to be present in the response.
-
-
-## Serving the sample web page
-
-Follow these steps to try the simple front‑end included under `web/`:
-
-1. Copy the example configuration and fill in the required values:
-
-   ```bash
-   cp web/config.example.js web/config.js
-   ```
-
-   Edit `web/config.js` and provide your `apiEndpoint`, `cloudfrontUrl`,
-   `userPoolId` and `userPoolClientId` (these can be obtained with
-   `terragrunt output`).
-
-2. Serve `web/index.html` locally or upload the files to an S3 bucket
-   and front it with CloudFront. For quick local testing you can run:
-
-   ```bash
-   npx http-server web
-   # or
-   python3 -m http.server --directory web 8080
-   ```
-
-   Then open the printed URL in your browser.
-
-Submitting the form sends a JSON body containing `imagen`, `titulo`, `subtitulo`,
-`beneficios` and `cta` to the configured API Gateway endpoint. API Gateway invokes
-the Lambda function, which returns a JSON object with `htmlUrl`, `imagePresignedUrl`,
-`imageS3Url` and `promptUsado`. The script in `web/main.js` uses `htmlUrl` to
-redirect the browser to the generated page.
-
-
-
-## License
+## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
 

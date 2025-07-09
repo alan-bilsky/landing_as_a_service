@@ -1,0 +1,146 @@
+---
+alwaysApply: true
+---
+# ────────────────────────────────────────────────────────────
+#  .cursor/project-rules ― Landing-as-a-Service (LaaS)
+# ────────────────────────────────────────────────────────────
+#  These rules guide Cursor’s code generation, refactors, and 
+#  documentation for this repository.  Keep them evergreen.
+# ────────────────────────────────────────────────────────────
+
+──────────────────────────────────────
+1. Purpose
+──────────────────────────────────────
+Build a “chat-only” web app where a user:
+
+1. Pastes a **public URL**.
+2. Chooses / types an **industry**.
+3. Receives the *same* site, augmented with an AI-generated landing
+   section (hero, features, CTA, etc.) matching the site’s style.
+
+The workflow:
+
+• Lambda **fetch_site**   – downloads target HTML/CSS to S3 → `raw/`
+• Lambda **gen_landing**  – prompts Amazon Bedrock, stores assets → `generated/`
+• Lambda **inject_html**  – merges original + landing, writes → `public/`
+• CloudFront serves `public/*` under a custom domain.
+• (Optional) Cognito secures the chat UI.
+
+──────────────────────────────────────
+2. Repo Layout
+──────────────────────────────────────
+infrastructure/              # Terragrunt live code
+  └─ live/prod/…             # one stack; use TF workspaces for stages
+lambdas/
+  ├─ fetch_site/             # Python 3.12
+  ├─ gen_landing/            # Python 3.12
+  └─ inject_html/            # Python 3.12
+frontend/
+  ├─ index.html
+  ├─ chat.js
+  └─ styles.css
+modules/                     # reusable Terraform modules
+scripts/                     # helper CLIs
+tests/                       # pytest + moto/localstack
+.cursor/                     # this file lives here
+
+──────────────────────────────────────
+3. Coding Conventions
+──────────────────────────────────────
+• **Python** – black + isort; full type hints; pydantic models for
+  Lambda payloads; Lambda Powertools for logs, metrics, tracing.
+
+• **JavaScript** – vanilla or HTMX-style; ES2020 features only; no
+  heavyweight frameworks.
+
+• **Terraform/Terragrunt**
+  – modules live in `modules/`; live dirs contain **only**
+    `terragrunt.hcl`.
+  – variable layering: `env.hcl` (global) → `region.tfvars` (per-region).
+  – justify any `#tfsec:ignore:<rule>` inline.
+
+• Naming
+  – files / S3 prefixes → snake_case  
+  – AWS resources       → PascalCase  
+  – S3 buckets          → kebab-case (`lpgen-${env}-${region}`)
+
+──────────────────────────────────────
+4. AWS Rules
+──────────────────────────────────────
+S3
+  • versioning ON, public-access BLOCK OFF (CloudFront OAI governs)
+  • prefixes: `raw/`, `generated/`, `public/`
+
+Lambdas
+  • runtime Python 3.12, architecture ARM64 unless x86 libs required
+  • memory 256 MB default; timeout: 30 s fetch_site, 120 s gen_landing
+  • package: `pip -r requirements.txt -t .` then zip
+
+IAM
+  • one execution role per Lambda, least privilege
+  • allow `s3:*Object` only on that Lambda’s prefix
+  • allow `bedrock:InvokeModel` on the chosen model ARN
+
+Bedrock
+  • default model `anthropic.claude-3-sonnet-20240229`
+  • wrap call in 5 s timeout + exp-backoff retry (<= 2 min total)
+  • prompt template stored in SSM Parameter `/laas/bedrock/prompt`
+
+CloudFront
+  • OAI → S3; default root `index.html`
+  • auto-invalidate `public/${uuid}/*` after generation complete
+  • attach AWS WAF managed common rule set
+
+Cognito (optional)
+  • single user pool + hosted UI; implicit grant; group “demo-users”
+
+Logging / Tracing
+  • Powertools logger, tracer, metrics; retention 30 days unless
+    `var.long_term_logs` == true
+
+──────────────────────────────────────
+5. Bedrock Prompt Contract
+──────────────────────────────────────
+Request JSON
+{
+  "instruction": "Generate landing page components",
+  "industry": "<industry string>",
+  "tone": "convincing, modern, trustworthy",
+  "fields_needed": ["hero_html","features_html","cta_html","img_prompts"]
+}
+
+Response MUST be valid JSON with the same keys.
+`img_prompts` = Unsplash-style descriptions (no direct URLs).
+
+──────────────────────────────────────
+6. HTML Injection Rules
+──────────────────────────────────────
+• Locate `<header>`; inject landing immediately after.  
+  If no `<header>`, inject before closing `</body>`.  
+• Do **not** duplicate existing `<style>` or `<script>` IDs.  
+• Prefix generated CSS classes with `lp-`.
+
+──────────────────────────────────────
+7. Security & Compliance
+──────────────────────────────────────
+• Never log full HTML; log only S3 keys + metadata.  
+• Strip query params before fetching.  
+• Reject non-HTTP(S) URLs or any that resolve to private IPs.  
+• Enable WAF managed common rule set on CloudFront.  
+
+──────────────────────────────────────
+8. Testing & CI
+──────────────────────────────────────
+• pytest with moto + localstack for S3/Bedrock mocks  
+• cypress (optional) for chat UI E2E  
+• GitHub Actions: unit tests → `terraform validate` → `tfsec` → deploy  
+  on `main` branch.  
+
+──────────────────────────────────────
+9. Definition of Done
+──────────────────────────────────────
+✓ User hits `/chat`, submits URL + industry, presses **Generate**.  
+✓ Within 60 s sees page at `https://app.<domain>/view/<uuid>`.  
+✓ Lambda p95 runtime ≤ 100 ms (except Bedrock call).  
+✓ `make deploy` (wrapper for `terragrunt run-all apply`) stands up the
+  entire stack with zero console clicks.  

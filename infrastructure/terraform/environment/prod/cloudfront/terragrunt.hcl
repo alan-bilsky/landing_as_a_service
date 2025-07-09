@@ -15,7 +15,7 @@ terraform {
 }
 
 inputs = merge(local.environment_vars, {
-  distribution_name           = "laas-${local.environment_vars.environment}-cf"
+  distribution_name           = "lpgen-${local.environment_vars.environment}-${local.environment_vars.region}-cf"
   origin_bucket_name          = dependency.output_bucket.outputs.bucket_name
   origin_bucket_domain_name   = "${dependency.output_bucket.outputs.bucket_name}.s3.amazonaws.com"
 })

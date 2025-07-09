@@ -7,8 +7,16 @@ IMAGE_TAG=${IMAGE_TAG:-latest}
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_URL="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_NAME:$IMAGE_TAG"
 
-cd "$(dirname "$0")/.."
+# Go to the puppeteer_lambda module root
+d=$(dirname "$0")/..
+cd "$d"
 
+# Ensure dependencies are installed
+cd build
+npm install
+cd ..
+
+# Build Docker image
 docker build --platform=linux/amd64 -t $IMAGE_NAME:latest .
 
 echo "Logging in to ECR..."

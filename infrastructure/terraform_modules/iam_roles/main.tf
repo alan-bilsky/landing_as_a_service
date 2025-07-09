@@ -33,6 +33,29 @@ data "aws_iam_policy_document" "lambda_policy" {
 
   statement {
     actions   = ["bedrock:InvokeModel"]
-    resources = ["*"]
+    resources = [
+      "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-*",
+      "arn:aws:bedrock:*::foundation-model/stability.stable-diffusion-xl-v1",
+      "arn:aws:bedrock:*::foundation-model/amazon.titan-image-generator-v1",
+      "arn:aws:bedrock:*::foundation-model/amazon.titan-image-generator-v2:0"
+    ]
+  }
+
+  statement {
+    actions   = ["lambda:InvokeFunction"]
+    resources = ["arn:aws:lambda:*:*:function:lpgen-*"]
+  }
+
+  statement {
+    actions   = ["s3:PutObject", "s3:GetObject"]
+    resources = ["${var.output_bucket_arn}/status/*"]
+  }
+
+  statement {
+    actions   = ["ssm:GetParameter"]
+    resources = [
+      "arn:aws:ssm:*:*:parameter/laas/bedrock/prompt",
+      "arn:aws:ssm:*:*:parameter/laas/bedrock/system_prompt"
+    ]
   }
 }

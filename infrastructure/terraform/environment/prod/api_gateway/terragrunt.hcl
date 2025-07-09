@@ -10,9 +10,15 @@ terraform {
   source = "../../../../terraform_modules/api_gateway"
 }
 
+dependency "orchestrator_lambda" {
+  config_path = "../orchestrator_lambda"
+}
+
 inputs = merge(local.environment_vars,
   {
-  api_name = "laas-${local.environment_vars.environment}-api"
-  lambda_function_name = "laas-${local.environment_vars.environment}-handler"
+  api_name = "lpgen-${local.environment_vars.environment}-${local.environment_vars.region}-api"
+  lambda_function_name = dependency.orchestrator_lambda.outputs.lambda_function_name
+  region = local.environment_vars.region
+  account_id = tostring(local.environment_vars.account_id)
 }
 )
